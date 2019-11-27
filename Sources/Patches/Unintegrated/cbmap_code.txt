@@ -1,0 +1,295 @@
+This file contains the source for exporting the full atlantis map, with all units and everything to a set of Crystal Ball data files. To use this you will have to paste the code into the relevant files, and add the required prototypes. Run "atlantis map cball" and it writes lots of files of the form surfaxe<x>.txt, each containing data for 500 regions. This is for performance reasons when importing the data into Crystal Ball.
+
+<aregion.cpp> <aregion.h>
+
+void ARegion::WriteCbMap( Aoutfile *f, int turnnumber)
+{
+    AString s, t;
+    const char *szLevels[3] = { "Nexus", "Overworld", "Underworld" };
+    f->PutStr("");
+    s = AString("[Hex ") + xloc + AString(",") + yloc + AString(",") + szLevels[zloc] + AString("]");
+    f->PutStr(s);
+    if (turnnumber)
+    {   s = AString("Turn=") + turnnumber;
+        f->PutStr(s);
+    }
+    s = AString("Terrain=") + TerrainDefs[type].name;
+    f->PutStr(s);
+    f->PutStr("Confirmed=True");
+    s = AString("Province=") + *name;
+    f->PutStr(s);
+    if (race >= 0)
+    {   s = AString("Peasants=") + ItemDefs[race].abr + AString(",") + population;
+        f->PutStr(s);
+    }
+    if (town)
+    {   switch(town->TownType())
+        {   case TOWN_VILLAGE:
+                s = "Village=";
+                break;
+            case TOWN_TOWN:
+                s = "Town=";
+                break;
+            default:
+                s = "City=";
+                break;
+        }
+        s += *(town->name);
+        f->PutStr(s);
+    }
+    s = AString("Tax Base=") + money;
+    f->PutStr(s);
+    s = AString("Wages=") + wages;
+    f->PutStr(s);
+    int ent = 0;
+    int has = 0;
+    int totalwages = 0;
+    s = "Products=";
+    {   forlist((&products))
+        {   Production * p = ((Production *) elem);
+            if (p->itemtype == I_SILVER)
+            {   if (p->skill == S_ENTERTAINMENT) ent = p->amount;
+                else totalwages = p->amount;
+            }
+            else
+            {   if (has) s += AString(";");
+                else has = 1;
+                s += ItemDefs[p->itemtype].abr;
+                s += ",";
+                s += p->amount;
+            }
+
+        }
+    }
+    f->PutStr(AString("Entertainment=") + ent);
+    f->PutStr(s);
+    s = AString("Max Wages=") + totalwages;
+    f->PutStr(s);
+    s = "Wanted=";
+    t = "For Sale=";
+    has = 0;
+    ent = 0;
+    {   forlist(&markets)
+        {   Market * m = (Market *) elem;
+            if (!m->amount) continue;
+            if (m->type == M_SELL)
+            {   if (has) s += ";";
+                else has = 1;
+                s += ItemDefs[m->item].abr;
+                s += ",";
+                s += m->amount;
+                s += ",";
+                s += m->price;
+            }
+            else if (m->type == M_BUY)
+            {   if (ent) t += ";";
+                else ent = 1;
+                t += ItemDefs[m->item].abr;
+                t += ",";
+                t += m->amount;
+                t += ",";
+                t += m->price;
+            }
+        }
+    }
+    f->PutStr(s);
+    f->PutStr(t);
+    if (gate > 0) 
+    {   s = AString("Gate=") + gate;
+        f->PutStr(s);
+    }
+    Object *obj;
+    Unit * u;
+    Item * it;
+    Skill * sk;
+    has = 0;
+    ent = 0;
+    s = AString("Units=");
+    {   forlist(&objects)
+        {   obj = (Object *)elem;
+            if (obj->type == O_DUMMY)
+            {   ent = 1;
+                forlist(&obj->units)
+                {   u = (Unit *) elem;
+                    if (has) s += ";";
+                    else has = 1;
+                    s += u->num;
+                }
+            }
+        }
+    }
+    f->PutStr(s);
+    if (ent)
+    {   f->PutStr("");
+        forlist(&objects)
+        {   obj = (Object *)elem;
+            if (obj->type != O_DUMMY)
+            {   s = AString("[Structure ") + obj->num + AString(": ") + xloc +
+                   AString(",") + yloc + AString(",") + szLevels[zloc] + AString("]");
+                f->PutStr(s);
+                if (turnnumber)
+                {   s = AString("Turn=") + turnnumber;
+                    f->PutStr(s);
+                }
+                s = AString("Name=") + *(obj->name);
+                f->PutStr(s);
+                if (obj->describe)
+                {   s = AString("Description=") + *(obj->describe);
+                    f->PutStr(s);
+                }
+                s = AString("Kind=") + ObjectDefs[obj->type].name;
+                f->PutStr(s);
+                s = AString("Needs=") + obj->incomplete;
+                s = "Units=";
+                has = 0;
+                forlist(&obj->units)
+                {   u = (Unit *) elem;
+                    if (has) s += ";";
+                    else has = 1;
+                    s += u->num;
+                }
+                if (has) f->PutStr(s);
+            }
+        }
+    }
+    forlist(&objects)
+    {   obj = (Object *)elem;
+        {   forlist(&obj->units)
+            {   u = (Unit *) elem;
+                f->PutStr("");
+                s = AString("[Unit ") + u->num + AString(": ") + xloc + AString(",") +
+                    yloc + AString(",") + szLevels[zloc] + AString("]");
+                f->PutStr(s);
+                if (turnnumber)
+                {   s = AString("Turn=") + turnnumber;
+                    f->PutStr(s);
+                }
+                s = AString("Name=") + *(u->name);
+                f->PutStr(s);
+                if (obj->describe)
+                {   s = AString("Description=") + *(obj->describe);
+                    f->PutStr(s);
+                }
+                s = AString("Faction=") + u->faction->num;
+                f->PutStr(s);
+                f->PutStr("Faction Confirmed=True");
+                has = 0;
+                ent = 0;
+                s = "Troops=";
+                t = "Items=";
+                {   forlist(&u->items)
+                    {   it = (Item *) elem;
+                        if (it->type >=0)
+                        {   if( ItemDefs[ it->type ].type & IT_MAN )
+                            {   if (has) s += ";";
+                                else has = 1;
+                                s += AString(ItemDefs[it->type].abr) + AString(",") + it->num;
+                            }
+                            else
+                            {   if (ent) t += ";";
+                                else ent = 1;
+                                t += AString(ItemDefs[it->type].abr) + AString(",") + it->num;
+                            }
+                        }
+                    }
+                }
+                if (has) f->PutStr(s);
+                if (ent) f->PutStr(t);
+                has = 0;
+                ent = u->GetMen();
+                s = "Skills=";
+                {   forlist(&u->skills)
+                    {   sk = (Skill *) elem;
+                        if (sk->type >= 0)
+                        {   if (has) s += ";";
+                            else has = 1;
+                            s += AString(SkillDefs[sk->type].abbr) + AString(",") +
+                                (int)(sk->days/ent) + AString(",*");
+                        }
+                    }
+                }
+                if (has) f->PutStr(s);
+                if (u->combat >= 0)
+                {   if (SkillDefs[u->combat].flags & SkillType::COMBAT)
+                    {   s = AString("CombatSpell=") + SkillDefs[u->combat].abbr;
+                        f->PutStr(s);
+                    }
+                }
+                /*  1:avoiding
+                    2:behind
+                    4:reveal unit
+                    8:reveal faction
+                    16:on guard
+                    32:holding
+                    64:noaid
+                    128:autotax
+                    256:consume unit
+                    512:consume faction
+                */
+                ent = 0;
+                if (u->guard == GUARD_AVOID) ent |= 1;
+                else if (u->guard == GUARD_GUARD) ent |= 16;
+                if (u->reveal == REVEAL_UNIT) ent |= 4;
+                else if (u->reveal == REVEAL_FACTION) ent |= 8;
+                if (u->GetFlag(FLAG_BEHIND)) ent |= 2;
+                if (u->GetFlag(FLAG_HOLDING)) ent |= 32;
+                if (u->GetFlag(FLAG_NOAID)) ent |= 64;
+                if (u->GetFlag(FLAG_AUTOTAX)) ent |= 128;
+                if (u->GetFlag(FLAG_CONSUMING_UNIT)) ent |= 256;
+                if (u->GetFlag(FLAG_CONSUMING_FACTION)) ent |= 512;
+                s = AString("Flags=") + ent;
+                f->PutStr(s);
+            }
+        }
+    }
+}
+
+<game.cpp> <game.h>
+
+void Game::WriteCbMap(const AString & mapfile)
+{
+    Aoutfile f;
+    AString file;
+    ARegion *reg;
+    int num = 1;
+    int numhex = 0;
+    int header = 1;
+    int turnnumber = TurnNumber();
+    forlist(&regions)
+    {   if (header)
+        {   file = mapfile;
+            if (file.Len() <= 0) file = "surface";
+            file += num;
+            file += ".txt";
+            if( f.OpenByName(file) == -1 ) return;
+            f.PutStr("[ATLANTIS DATA]");
+            int turnnumber = TurnNumber();
+            f.PutStr(AString("Turn=") + turnnumber);
+            f.PutStr("Source=Atlantis");
+            f.PutStr("");
+            header = 0;
+        }
+        reg = (ARegion *)elem;
+        reg->WriteCbMap(&f, turnnumber);
+        if (++numhex > 500) 
+        {   numhex = 0;
+            f.Close();
+            num++;
+            header = 1;
+        }
+    }
+    f.Close();
+}
+
+int Game::ViewMap(const AString & typestr,const AString & mapfile)
+{
+    int type = 0;
+    if (AString(typestr) == "wmon") type = 1;
+    if (AString(typestr) == "lair") type = 2;
+    if (AString(typestr) == "gate") type = 3;
+    if (AString(typestr) == "cball")
+    {   WriteCbMap(mapfile);
+        return( 1 );
+    }
+    <snip>
+

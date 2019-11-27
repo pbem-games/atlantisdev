@@ -1,0 +1,156 @@
+Index: aregion.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/aregion.cpp,v
+retrieving revision 1.50.2.1
+diff -u -r1.50.2.1 aregion.cpp
+--- aregion.cpp	22 Jul 2002 20:45:44 -0000	1.50.2.1
++++ aregion.cpp	14 Sep 2002 19:43:44 -0000
+@@ -665,10 +665,16 @@
+ 		if(Globals->LESS_ARCTIC_TOWNS) {
+ 			int dnorth = GetPoleDistance(D_NORTH);
+ 			int dsouth = GetPoleDistance(D_SOUTH);
+-			if (dnorth < 9)
+-				popch = popch - (9 - dnorth) * ((9 - dnorth) + 10) * 15;
+-			if (dsouth < 9)
+-				popch = popch - (9 - dsouth) * ((9 - dsouth) + 10) * 15;
++			int dist = dnorth;
++
++			/*
++			 * On small worlds, or the underworld levels, both distances
++			 * could be less than 9, so choose the smallest.
++			 */
++			if (dsouth < dist) dist = dsouth;
++
++			if (dist < 9)
++				popch = popch - (9 - dist) * ((9 - dist) + 10) * 15;
+ 		}
+ 		town->pop = 500+getrandom(popch);
+ 	} else {
+Index: game.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/game.cpp,v
+retrieving revision 1.52
+diff -u -r1.52 game.cpp
+--- game.cpp	6 Jul 2002 02:51:38 -0000	1.52
++++ game.cpp	14 Sep 2002 17:46:22 -0000
+@@ -1721,7 +1721,7 @@
+     unitseq++;
+ 	if(unitseq >= maxppunits) {
+ 		Unit **temp = new Unit*[maxppunits+10000];
+-		memcpy(temp, ppUnits, maxppunits);
++		memcpy(temp, ppUnits, maxppunits*sizeof(Unit *));
+ 		maxppunits += 10000;
+ 		delete ppUnits;
+ 		ppUnits = temp;
+Index: gameio.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/gameio.cpp,v
+retrieving revision 1.2
+diff -u -r1.2 gameio.cpp
+--- gameio.cpp	5 Jul 2001 00:18:01 -0000	1.2
++++ gameio.cpp	14 Sep 2002 19:36:47 -0000
+@@ -59,10 +59,18 @@
+ 
+ int getrandom(int range)
+ {
++	int neg = (range < 0) ? 1 : 0;
++	int ret = 0;
++
+     if (!range) return 0;
++	if (neg) range = -range;
++
+     unsigned long i = isaac_rand( &isaac_ctx );
+     i = i % range;
+-    return (int) i;
++
++	if (neg) ret = (int)(i * -1);
++	else ret = (int)i;
++    return ret;
+ }
+ 
+ void seedrandom(int num)
+Index: genrules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/genrules.cpp,v
+retrieving revision 1.46
+diff -u -r1.46 genrules.cpp
+--- genrules.cpp	17 Jul 2002 19:22:26 -0000	1.46
++++ genrules.cpp	14 Aug 2002 13:57:04 -0000
+@@ -235,13 +235,13 @@
+ 	if(Globals->WANDERING_MONSTERS_EXIST) {
+ 		f.TagText("LI", f.Link("#nonplayers_monsters", "Wandering Monsters"));
+ 	}
+-	f.TagText("LI", f.Link("#noplayers_controlled", "Controlled Monsters"));
++	f.TagText("LI", f.Link("#nonplayers_controlled", "Controlled Monsters"));
+ 	f.Enclose(0, "UL");
+ 	f.Enclose(0, "LI");
+ 	f.Enclose(1, "LI");
+ 	f.PutStr(f.Link("#orders", "Orders"));
+ 	f.Enclose(1, "UL");
+-	f.TagText("LI", f.Link("#orders_appreviations", "Abbreviations"));
++	f.TagText("LI", f.Link("#orders_abbreviations", "Abbreviations"));
+ 	f.Enclose(0, "UL");
+ 	f.Enclose(0, "LI");
+ 	f.Enclose(1, "LI");
+Index: runorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/runorders.cpp,v
+retrieving revision 1.39
+diff -u -r1.39 runorders.cpp
+--- runorders.cpp	10 Jul 2002 15:32:30 -0000	1.39
++++ runorders.cpp	31 Aug 2002 05:39:32 -0000
+@@ -956,24 +956,24 @@
+ void Game::Do1EvictOrder(Object *obj, Unit *u)
+ {
+ 	EvictOrder *ord = u->evictorders;
++	Object *to = obj->region->GetDummy();
+ 
+ 	while (ord && ord->targets.Num()) {
+ 		UnitId *id = (UnitId *)ord->targets.First();
+ 		ord->targets.Remove(id);
+ 		Unit *tar = obj->GetUnitId(id, u->faction->num);
+ 		delete id;
++		if (!tar) continue;
++
+ 		if(obj->IsBoat() &&
+-			(TerrainDefs[obj->region->type].similar_type == R_OCEAN) &&
+-			(!tar->CanReallySwim() || tar->GetFlag(FLAG_NOCROSS_WATER))) {
++				(TerrainDefs[obj->region->type].similar_type == R_OCEAN) &&
++				(!tar->CanReallySwim() || tar->GetFlag(FLAG_NOCROSS_WATER))) {
+ 			u->Error("EVICT: Cannot forcibly evict units over ocean.");
+ 			continue;
+ 		}
+-		Object *to = obj->region->GetDummy();
+ 		tar->MoveUnit(to);
+-		tar->Event(AString("Evicted from ") + *obj->name + " by " +
+-				*u->name);
+-		u->Event(AString("Evicted ") + *tar->name + " from " +
+-				*obj->name);
++		tar->Event(AString("Evicted from ") + *obj->name + " by " + *u->name);
++		u->Event(AString("Evicted ") + *tar->name + " from " + *obj->name);
+ 	}
+ }
+ 
+Index: CHANGELOG
+===================================================================
+RCS file: /home/cvs/atlantis/CHANGELOG,v
+retrieving revision 1.106.2.1
+diff -u -r1.106.2.1 CHANGELOG
+--- CHANGELOG	22 Jul 2002 20:45:44 -0000	1.106.2.1
++++ CHANGELOG	14 Sep 2002 19:47:44 -0000
+@@ -551,3 +551,15 @@
+ --------------------------------------------------
+    -- Fixed bug in conquest map generation caused by terrain change patch
+    -- Fixed potential namespace collision on 'fill' in template.cpp
++
++Changes from 4.0.10a -> 4.0.10b
++--------------------------------------------------
++   -- Fixed bug with extremely large worlds and more than 10000 units
++   -- Fixed bug with small worlds/levels where a town was less than 9
++      hexes from *both* poles AND LESS_ARTIC_TOWNS was enabled.  This
++	  caused very large negative/positive numbers for wages and such.
++   -- Fixed a bug in random number generation when getrandom was called
++      on a negative number (found while fixing the one above)
++   -- Fixed a potential crash when evicting someone who had already
++      left the building.
++   -- Fixed a couple of typos in the generated rules.

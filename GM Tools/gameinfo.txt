@@ -1,0 +1,143 @@
+// start of region
+Trick		// name of region
+9		// number (refer to e.g. in shafts' inner location)
+3		// type (mountain)
+1		// building sequence (next building will get this number)
+0		// gate (put the number of the gate here)
+9		// race (sea elf)
+317		// population (<> max pop if pillaged)
+317		// maximal population (pop will recover to this value over time)
+14		// wages (<> max wages if pillaged)
+14		// maximal wages (wages will recover to this value over time)
+1268		// money (maximal taxes)
+0		// town flag ( change to 1 and include town info here )
+16		// x-coordinate
+0		// y-coordinate
+1		// z-coordinate
+--- production ----------------------------------------------------------------
+6		// number of producable items (ressources +2)
+18		// item (grain)
+35		// amount
+35		// maximal amount
+22		// skill (farming)
+1		// level needed ? I don't think this is level as it's always 1) 
+1		// productivity
+20		// item (iron)
+38		// amount
+38		// maximal amount
+0		// skill (mining)
+1		// level needed ?
+1		// productivity
+22		// item (stone)
+13		// amount
+13		// maximal amount
+2		// skill (quarrying)
+1		// level needed ?
+1		// productivity
+37		// item (rootstone)
+7		// amount
+7		// maximal amount
+2		// skill (quarrying)
+1		// level needed ? Should be 3 if level.
+1		// productivity
+17		// item (silver)
+253		// amount (working silver is calculated from this value)
+0		// base amount (working silver isn't pillaged)
+-1		// skill (none needed for working)
+1		// level
+14		// productivity (=wages)
+17		// item (silver)
+63		// amount (for entertainment)
+0		// base amount (cannot be pillaged either)
+12		// skill (entertainment)
+1		// level needed ?
+20		// productivity
+--- markets -------------------------------------------------------------------
+2		// number of markets
+0		// type (sale)
+9		// item (sea elves)
+56		// price
+63		// amount (1/5th of population in case of men)
+0		// minimum population to sell this
+10000		// maximum population to sell this
+0		// minimal amount (1/5th of min pop)
+2000		// maximum moun (1/5th of max pop)
+56		// base price
+0		// type (sale)
+0		// item (leader)
+112		// price
+12		// amount (1/25th of population in case of leaders)
+0		// minimum population to sell this
+10000		// maximum population to sell this
+0		// minimal amount (1/25th of min pop)
+400		// maximum moun (1/25th of max pop)
+112		// base price
+--- buildings -----------------------------------------------------------------
+1		// number of buildings +1 (==building sequence)
+0		// dummy object (the region itself)
+0		// dummy object (the region itself)
+0		// dummy object (the region itself)
+Dummy		// dummy object (the region itself)
+none		// dummy object (the region itself)
+-1		// dummy object (the region itself)
+0		// dummy object (the region itself)
+0		// dummy object (the region itself) number of units inside
+// end of region
+
+// start of town (! add after town flag=1)
+Hensur		// town name
+2534		// population
+2534		// maximum population (<>pop if pillaged)
+// end of town (! dont forget to add more markets for a city)
+
+// start of building (! add after dummy building)
+1		// number of building
+13		// type of building (cave)
+0		// incomplete (number of ressources needed for completion)
+Cave [1]	// name (always add the number in "[]" )
+none		// description
+-1		// inner location (put the region number of destination here)
+0		// runes (sorry, I never had a runed building so no info here)
+0		// number of units inside
+// end of building
+// (! don't forget to increase number of buildings and building sequence)
+
+// start of unit
+City Guard (2)	// name (always add the number in "()" )
+none		// description
+2		// number of unit
+2		// type of unit (0==normal, 1==mage, 2==guard, 3==monster)
+1		// owning faction
+1		// guard flag (1 if unit is guarding)
+0		// reveal flag
+8		// flags
+3		// number of items this unit has
+0		// item type (leaders)
+80		// number
+27		// item type (swords)
+80		// number
+17		// item type (silver)
+4000		// number
+2		// number of skills this unit knows
+14		// skill type (combat)
+7200		// days known (divide by number of men for skill level)
+19		// skill type (observation)
+7200		// days known (divide by number of men for skill level)
+-1		// combat flag
+// end of unit
+ 
+// start of monster
+Dragon (185)	// name (always add the number in "()" )
+none		// description
+185		// number of unit
+3		// type of unit (monster)
+2		// owning faction (monsters)
+2		// guard flag
+0		// reveal flag
+8		// flags
+1		// number of items this unit has
+78		// item type (dragon)
+1		// number
+0		// number of skills this unit knows
+-1		// combat flag
+// end of monster

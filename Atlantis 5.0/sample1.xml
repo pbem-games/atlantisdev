@@ -1,0 +1,143 @@
+<?xml version="1.0"?>
+<atlantisReport version="1">
+  <gameVersion>5.0.0 (beta)</gameVersion>
+  <rulesSet>Standard Atlantis</rulesSet>
+  <rulesVersion>5.0.0 (beta)</rulesVersion>
+  <month>March</month>
+  <year>1</year>
+  <factionEntity>
+    <factionNumber>3</factionNumber>
+    <factionName>Mighty Ducks (3)</factionName>
+    <warFactionPoints>1</warFactionPoints>
+    <tradeFactionPoints>1</tradeFactionPoints>
+    <magicFactionPoints>1</magicFactionPoints>
+    <warRegions>0</warRegions>
+    <tradeRegions>0</tradeRegions>
+    <magicMages>0</magicMages>
+    <magicApprentices>0</magicApprentices>
+    <times>1</times>
+    <passwordExists>1</passwordExists>
+    <inactiveTurns>2</inactiveTurns>
+    <unclaimed>5010</unclaimed>
+    <attitude faction="DEFAULT" kind="Neutral" />
+  </factionEntity>
+  <eventReport>
+    <comments>Unit (312): Claims 20 silver for maintenance.</comments>
+  </eventReport>
+  <regionReport>
+    <regionName>Tiny</regionName>
+    <terrain>swamp</terrain>
+    <xloc>36</xloc>
+    <yloc>14</yloc>
+    <zloc></zloc>
+    <townName>Helmund</townName>
+    <townType>city</townType>
+    <population>5187</population>
+    <race>tribesmen</race>
+    <wealth>25935</wealth>
+    <currWeather>clear</currWeather>
+    <nextWeather>clear</nextWeather>
+    <wages>15</wages>
+    <wagesMax>77805</wagesMax>
+    <sellEntity id="IRON" count="-1" price="75" />
+    <sellEntity id="WOOD" count="-1" price="75" />
+    <sellEntity id="STON" count="-1" price="75" />
+    <sellEntity id="FUR" count="-1" price="75" />
+    <sellEntity id="HERB" count="-1" price="75" />
+    <sellEntity id="HORS" count="-1" price="75" />
+    <sellEntity id="SWOR" count="-1" price="150" />
+    <sellEntity id="XBOW" count="-1" price="150" />
+    <sellEntity id="LBOW" count="-1" price="150" />
+    <sellEntity id="CARM" count="-1" price="150" />
+    <sellEntity id="PARM" count="-1" price="625" />
+    <sellEntity id="WAGO" count="-1" price="250" />
+    <sellEntity id="TMAN" count="-1" price="60" />
+    <sellEntity id="LEAD" count="-1" price="120" />
+    <productEntity id="GRAI" count="11" />
+    <productEntity id="WOOD" count="13" />
+    <productEntity id="HERB" count="19" />
+    <productEntity id="ENTE" count="1296" />
+    <exitEntity dir="North">
+      <regionName>Heald</regionName>
+      <terrain>mountain</terrain>
+      <xloc>36</xloc>
+      <yloc>12</yloc>
+      <zloc></zloc>
+    </exitEntity>
+    <exitEntity dir="Northeast">
+      <regionName>Tiny</regionName>
+      <terrain>swamp</terrain>
+      <xloc>37</xloc>
+      <yloc>13</yloc>
+      <zloc></zloc>
+    </exitEntity>
+    <exitEntity dir="Southeast">
+      <regionName>Atlantis Ocean</regionName>
+      <terrain>ocean</terrain>
+      <xloc>37</xloc>
+      <yloc>15</yloc>
+      <zloc></zloc>
+    </exitEntity>
+    <exitEntity dir="South">
+      <regionName>Atlantis Ocean</regionName>
+      <terrain>ocean</terrain>
+      <xloc>36</xloc>
+      <yloc>16</yloc>
+      <zloc></zloc>
+    </exitEntity>
+    <exitEntity dir="Southwest">
+      <regionName>Heald</regionName>
+      <terrain>mountain</terrain>
+      <xloc>35</xloc>
+      <yloc>15</yloc>
+      <zloc></zloc>
+    </exitEntity>
+    <exitEntity dir="Northwest">
+      <regionName>Heald</regionName>
+      <terrain>mountain</terrain>
+      <xloc>35</xloc>
+      <yloc>13</yloc>
+      <zloc></zloc>
+    </exitEntity>
+    <objectEntity>
+      <name>PRESENT</name>
+      <kind>REGION</kind>
+      <unitEntity>
+        <unitID>18</unitID>
+        <name>City Guard (18)</name>
+        <factionID>?</factionID>
+        <guard>1</guard>
+        <itemEntity id="LEAD" count="120" illusion="0" />
+        <itemEntity id="SWOR" count="120" illusion="0" />
+      </unitEntity>
+      <unitEntity>
+        <unitID>312</unitID>
+        <name>Unit (312)</name>
+        <factionID>3</factionID>
+        <guard>0</guard>
+        <avoid>0</avoid>
+        <behind>0</behind>
+        <revealUnit>0</revealUnit>
+        <revealFaction>1</revealFaction>
+        <hold>0</hold>
+        <tax>0</tax>
+        <noaid>0</noaid>
+        <unitFood>0</unitFood>
+        <factionFood>0</factionFood>
+        <crossWater>1</crossWater>
+        <weightlessSpoils>0</weightlessSpoils>
+        <flyingSpoils>0</flyingSpoils>
+        <ridingSpoils>0</ridingSpoils>
+        <walkingSpoils>0</walkingSpoils>
+        <itemsWeight>10</itemsWeight>
+        <flyingCapacity>0</flyingCapacity>
+        <ridingCapacity>0</ridingCapacity>
+        <walkingCapacity>15</walkingCapacity>
+        <itemEntity id="LEAD" count="1" illusion="0" />
+      </unitEntity>
+    </objectEntity>
+  </regionReport>
+</atlantisReport>
+
+
+<!-- neodl6.grp.bf1.yahoo.com Wed Nov 27 12:31:53 UTC 2019 -->

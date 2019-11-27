@@ -1,0 +1,405 @@
+diff -r -c C:\TEMP\atlantis4010base\atlantis/aregion.cpp C:\TEMP\atlantis4010\atlantis/aregion.cpp
+*** C:\TEMP\atlantis4010base\atlantis/aregion.cpp	Mon Jul 22 20:40:38 2002
+--- C:\TEMP\atlantis4010\atlantis/aregion.cpp	Mon Jul 29 13:14:11 2002
+***************
+*** 3013,3019 ****
+  {
+  	Awrite("Severing land bridges");
+  	// mark land hexes to delete
+! 	for(int i = 0; i < pRegs->x; i++) {
+  		for(int j = 0; j < pRegs->y; j++) {
+  			ARegion *reg = pRegs->GetRegion(i, j);
+  			if ((!reg) || (TerrainDefs[reg->type].similar_type == R_OCEAN))
+--- 3013,3020 ----
+  {
+  	Awrite("Severing land bridges");
+  	// mark land hexes to delete
+! 	int i;
+! 	for(i = 0; i < pRegs->x; i++) {
+  		for(int j = 0; j < pRegs->y; j++) {
+  			ARegion *reg = pRegs->GetRegion(i, j);
+  			if ((!reg) || (TerrainDefs[reg->type].similar_type == R_OCEAN))
+***************
+*** 3031,3037 ****
+  		}
+  	}
+  	// now change to ocean
+! 	for(int i = 0; i < pRegs->x; i++) {
+  		for(int j = 0; j < pRegs->y; j++) {
+  			ARegion *reg = pRegs->GetRegion(i, j);
+  			if ((!reg) || (reg->wages > -2)) continue;
+--- 3032,3038 ----
+  		}
+  	}
+  	// now change to ocean
+! 	for(i = 0; i < pRegs->x; i++) {
+  		for(int j = 0; j < pRegs->y; j++) {
+  			ARegion *reg = pRegs->GetRegion(i, j);
+  			if ((!reg) || (reg->wages > -2)) continue;
+diff -r -c C:\TEMP\atlantis4010base\atlantis/game.h C:\TEMP\atlantis4010\atlantis/game.h
+*** C:\TEMP\atlantis4010base\atlantis/game.h	Mon Jul 01 07:18:14 2002
+--- C:\TEMP\atlantis4010\atlantis/game.h	Tue Jul 30 12:52:00 2002
+***************
+*** 300,314 ****
+                       const AString &strError );
+      UnitId *ParseUnit(AString * s);
+      int ParseDir(AString * token);
+! 
+  
+      void ParseOrders(int faction, Aorders *ordersFile, OrdersCheck *pCheck );
+      void ProcessOrder( int orderNum, Unit *unit, AString *order,
+                         OrdersCheck *pCheck );
+!     void ProcessMoveOrder(Unit *,AString *, OrdersCheck *pCheck );
+      void ProcessAdvanceOrder(Unit *,AString *, OrdersCheck *pCheck );
+!     Unit *ProcessFormOrder( Unit *former, AString *order,
+!                             OrdersCheck *pCheck );
+      void ProcessAddressOrder(Unit *,AString *, OrdersCheck *pCheck );
+      void ProcessAvoidOrder(Unit *,AString *, OrdersCheck *pCheck );
+      void ProcessGuardOrder(Unit *,AString *, OrdersCheck *pCheck );
+--- 300,315 ----
+                       const AString &strError );
+      UnitId *ParseUnit(AString * s);
+      int ParseDir(AString * token);
+! 	int ParseMove(AString *token);
+  
+      void ParseOrders(int faction, Aorders *ordersFile, OrdersCheck *pCheck );
+      void ProcessOrder( int orderNum, Unit *unit, AString *order,
+                         OrdersCheck *pCheck );
+!     void ProcessMoveOrder(Unit *,AString *, OrdersCheck *pCheck, int movespeed);
+      void ProcessAdvanceOrder(Unit *,AString *, OrdersCheck *pCheck );
+! 	void ProcessMoveAdvanceOrder(Unit * u,AString * o, OrdersCheck *pCheck, 
+! 		int advance);
+!     Unit *ProcessFormOrder( Unit *former, AString *order, OrdersCheck *pCheck );
+      void ProcessAddressOrder(Unit *,AString *, OrdersCheck *pCheck );
+      void ProcessAvoidOrder(Unit *,AString *, OrdersCheck *pCheck );
+      void ProcessGuardOrder(Unit *,AString *, OrdersCheck *pCheck );
+Only in C:\TEMP\atlantis4010\atlantis: genrules.empty.cpp
+diff -r -c C:\TEMP\atlantis4010base\atlantis/monthorders.cpp C:\TEMP\atlantis4010\atlantis/monthorders.cpp
+*** C:\TEMP\atlantis4010base\atlantis/monthorders.cpp	Thu Jul 11 17:11:52 2002
+--- C:\TEMP\atlantis4010\atlantis/monthorders.cpp	Tue Jul 30 12:36:50 2002
+***************
+*** 1098,1104 ****
+  	Location * loc = new Location;
+  	MoveOrder * o = (MoveOrder *) unit->monthorders;
+  	int movetype = unit->MoveType();
+! 
+  	if (unit->guard == GUARD_GUARD) unit->guard = GUARD_NONE;
+  	if (o->advancing) unit->guard = GUARD_ADVANCE;
+  
+--- 1098,1105 ----
+  	Location * loc = new Location;
+  	MoveOrder * o = (MoveOrder *) unit->monthorders;
+  	int movetype = unit->MoveType();
+! 	if ((o->movespeed > M_NONE) && (o->movespeed < movetype))
+! 		movetype = o->movespeed;
+  	if (unit->guard == GUARD_GUARD) unit->guard = GUARD_NONE;
+  	if (o->advancing) unit->guard = GUARD_ADVANCE;
+  
+diff -r -c C:\TEMP\atlantis4010base\atlantis/orders.cpp C:\TEMP\atlantis4010\atlantis/orders.cpp
+*** C:\TEMP\atlantis4010base\atlantis/orders.cpp	Sun May 05 23:29:08 2002
+--- C:\TEMP\atlantis4010\atlantis/orders.cpp	Tue Jul 30 13:15:51 2002
+***************
+*** 60,65 ****
+--- 60,68 ----
+  	"hold",
+  	"leave",
+  	"move",
++ 	"walk",
++ 	"ride",
++ 	"fly",
+  	"name",
+  	"noaid",
+  	"nocross",
+***************
+*** 125,133 ****
+  {
+  }
+  
+! MoveOrder::MoveOrder()
+  {
+  	type = O_MOVE;
+  }
+  
+  MoveOrder::~MoveOrder()
+--- 128,138 ----
+  {
+  }
+  
+! MoveOrder::MoveOrder(int ms)
+  {
+  	type = O_MOVE;
++ 	movespeed = ms;
++ 	advancing = 0;
+  }
+  
+  MoveOrder::~MoveOrder()
+diff -r -c C:\TEMP\atlantis4010base\atlantis/orders.h C:\TEMP\atlantis4010\atlantis/orders.h
+*** C:\TEMP\atlantis4010base\atlantis/orders.h	Sun May 05 23:29:08 2002
+--- C:\TEMP\atlantis4010\atlantis/orders.h	Tue Jul 30 13:15:48 2002
+***************
+*** 88,93 ****
+--- 88,96 ----
+  	O_HOLD,
+  	O_LEAVE,
+  	O_MOVE,
++ 	O_WALK,
++ 	O_RIDE,
++ 	O_FLY,
+  	O_NAME,
+  	O_NOAID,
+  	O_NOCROSS,
+***************
+*** 148,157 ****
+  
+  class MoveOrder : public Order {
+  	public:
+! 		MoveOrder();
+  		~MoveOrder();
+  
+  		int advancing;
+  		AList dirs;
+  };
+  
+--- 151,161 ----
+  
+  class MoveOrder : public Order {
+  	public:
+! 		MoveOrder(int ms = M_FLY);
+  		~MoveOrder();
+  
+  		int advancing;
++ 		int movespeed;
+  		AList dirs;
+  };
+  
+diff -r -c C:\TEMP\atlantis4010base\atlantis/parseorders.cpp C:\TEMP\atlantis4010\atlantis/parseorders.cpp
+*** C:\TEMP\atlantis4010base\atlantis/parseorders.cpp	Sat Jun 29 01:38:44 2002
+--- C:\TEMP\atlantis4010\atlantis/parseorders.cpp	Tue Jul 30 12:51:50 2002
+***************
+*** 65,70 ****
+--- 65,78 ----
+  	return -1;
+  }
+  
++ int Game::ParseMove(AString *token)
++ {
++ 	if (*token == "fly") return M_FLY;
++ 	if (*token == "ride") return M_RIDE;
++ 	if (*token == "walk") return M_WALK;
++ 	return -1;
++ }
++ 
+  int ParseTF(AString *token)
+  {
+  	if (*token == "true") return 1;
+***************
+*** 533,539 ****
+  			ProcessLeaveOrder(unit, pCheck);
+  			break;
+  		case O_MOVE:
+! 			ProcessMoveOrder(unit, o, pCheck);
+  			break;
+  		case O_NAME:
+  			ProcessNameOrder(unit, o, pCheck);
+--- 541,554 ----
+  			ProcessLeaveOrder(unit, pCheck);
+  			break;
+  		case O_MOVE:
+! 		case O_FLY:
+! 			ProcessMoveOrder(unit, o, pCheck, M_FLY);
+! 			break;
+! 		case O_RIDE:
+! 			ProcessMoveOrder(unit, o, pCheck, M_RIDE);
+! 			break;
+! 		case O_WALK:
+! 			ProcessMoveOrder(unit, o, pCheck, M_WALK);
+  			break;
+  		case O_NAME:
+  			ProcessNameOrder(unit, o, pCheck);
+***************
+*** 2582,2589 ****
+  
+  void Game::ProcessAdvanceOrder(Unit * u,AString * o, OrdersCheck *pCheck)
+  {
+- 	MoveOrder *m = 0;
+- 
+  	if ((u->monthorders && u->monthorders->type != O_ADVANCE) ||
+  		(Globals->TAX_PILLAGE_MONTH_LONG &&
+  		 ((u->taxing == TAX_TAX) || (u->taxing == TAX_PILLAGE)))) {
+--- 2597,2602 ----
+***************
+*** 2599,2629 ****
+  		u->monthorders = new MoveOrder;
+  		u->monthorders->type = O_ADVANCE;
+  	}
+! 	m = (MoveOrder *) u->monthorders;
+! 	m->advancing = 1;
+! 
+! 	for (;;) {
+! 		AString * t = o->gettoken();
+! 		if (!t) return;
+! 		int d = ParseDir(t);
+! 		delete t;
+! 		if (d!=-1) {
+! 			if(!pCheck) {
+! 				MoveDir * x = new MoveDir;
+! 				x->dir = d;
+! 				m->dirs.Add(x);
+! 			}
+! 		} else {
+! 			ParseError(pCheck, u, 0, "ADVANCE: Warning, bad direction.");
+! 			return;
+! 		}
+! 	}
+  }
+  
+! void Game::ProcessMoveOrder(Unit * u,AString * o, OrdersCheck *pCheck)
+  {
+- 	MoveOrder *m = 0;
+- 
+  	if ((u->monthorders && u->monthorders->type != O_MOVE) ||
+  		(Globals->TAX_PILLAGE_MONTH_LONG &&
+  		 ((u->taxing == TAX_TAX) || (u->taxing == TAX_PILLAGE)))) {
+--- 2612,2622 ----
+  		u->monthorders = new MoveOrder;
+  		u->monthorders->type = O_ADVANCE;
+  	}
+! 	ProcessMoveAdvanceOrder(u, o, pCheck, 1);
+  }
+  
+! void Game::ProcessMoveOrder(Unit * u,AString * o, OrdersCheck *pCheck, int movespeed)
+  {
+  	if ((u->monthorders && u->monthorders->type != O_MOVE) ||
+  		(Globals->TAX_PILLAGE_MONTH_LONG &&
+  		 ((u->taxing == TAX_TAX) || (u->taxing == TAX_PILLAGE)))) {
+***************
+*** 2636,2661 ****
+  	}
+  	if(Globals->TAX_PILLAGE_MONTH_LONG) u->taxing = TAX_NONE;
+  	if (!u->monthorders) {
+! 		u->monthorders = new MoveOrder;
+  	}
+! 	m = (MoveOrder *) u->monthorders;
+! 	m->advancing = 0;
+  
+! 	for (;;) {
+! 		AString * t = o->gettoken();
+  		if (!t) return;
+! 		int d = ParseDir(t);
+  		delete t;
+! 		if (d!=-1) {
+  			if(!pCheck) {
+  				MoveDir * x = new MoveDir;
+  				x->dir = d;
+  				m->dirs.Add(x);
+  			}
+  		} else {
+! 			ParseError(pCheck, u, 0, "MOVE: Warning, bad direction.");
+  			return;
+  		}
+  	}
+  }
+  
+--- 2629,2673 ----
+  	}
+  	if(Globals->TAX_PILLAGE_MONTH_LONG) u->taxing = TAX_NONE;
+  	if (!u->monthorders) {
+! 		u->monthorders = new MoveOrder(movespeed);
+  	}
+! 	ProcessMoveAdvanceOrder(u, o, pCheck, 0);
+! }
+  
+! void Game::ProcessMoveAdvanceOrder(Unit * u,AString * o, OrdersCheck *pCheck, int advance)
+! {	
+! 	MoveOrder *m = (MoveOrder *) u->monthorders;
+! 	m->advancing = advance;
+! 
+! 	AString * t = o->gettoken();
+! 	if (!t) return;
+! 	// Check move speed modifiers
+! 	int d = ParseMove(t);
+! 	if (d > 0) {
+! 		m->movespeed = d;
+! 		delete t;
+! 		t = o->gettoken();
+  		if (!t) return;
+! 	}
+! 	// Check directions
+! 	for (;;) {
+! 		d = ParseDir(t);
+  		delete t;
+! 		if (d != -1) {
+  			if(!pCheck) {
+  				MoveDir * x = new MoveDir;
+  				x->dir = d;
+  				m->dirs.Add(x);
+  			}
+  		} else {
+! 			if (advance)
+! 				ParseError(pCheck, u, 0, "ADVANCE: Warning, bad direction.");
+! 			else
+! 				ParseError(pCheck, u, 0, "MOVE: Warning, bad direction.");
+  			return;
+  		}
++ 		t = o->gettoken();
++ 		if (!t) return;
+  	}
+  }
+  
+diff -r -c C:\TEMP\atlantis4010base\atlantis/realms/world.cpp C:\TEMP\atlantis4010\atlantis/realms/world.cpp
+*** C:\TEMP\atlantis4010base\atlantis/realms/world.cpp	Mon Dec 24 22:27:26 2001
+--- C:\TEMP\atlantis4010\atlantis/realms/world.cpp	Mon Jul 29 13:28:33 2002
+***************
+*** 2165,2171 ****
+  	if(Globals->UNDERWORLD_LEVELS+Globals->UNDERDEEP_LEVELS == 1) {
+  		regions.MakeShaftLinks( 2, 1, 8 );
+  	} else if(Globals->UNDERWORLD_LEVELS+Globals->UNDERDEEP_LEVELS) {
+! 		int i, ii;
+  		// shafts from surface to underworld
+  		regions.MakeShaftLinks(2, 1, 10);
+  		for(i=3; i<Globals->UNDERWORLD_LEVELS+2; i++) {
+--- 2165,2171 ----
+  	if(Globals->UNDERWORLD_LEVELS+Globals->UNDERDEEP_LEVELS == 1) {
+  		regions.MakeShaftLinks( 2, 1, 8 );
+  	} else if(Globals->UNDERWORLD_LEVELS+Globals->UNDERDEEP_LEVELS) {
+! 		int ii;
+  		// shafts from surface to underworld
+  		regions.MakeShaftLinks(2, 1, 10);
+  		for(i=3; i<Globals->UNDERWORLD_LEVELS+2; i++) {
+***************
+*** 2210,2216 ****
+  
+      regions.InitSetupGates( 1 );
+  	// Set up gates on all levels of the underworld
+! 	for(int i=2; i < Globals->UNDERWORLD_LEVELS+2; i++) {
+  		regions.InitSetupGates( i );
+  	}
+  	// Underdeep has no gates, only the possible shafts above.
+--- 2210,2216 ----
+  
+      regions.InitSetupGates( 1 );
+  	// Set up gates on all levels of the underworld
+! 	for(i=2; i < Globals->UNDERWORLD_LEVELS+2; i++) {
+  		regions.InitSetupGates( i );
+  	}
+  	// Underdeep has no gates, only the possible shafts above.
+diff -r -c C:\TEMP\atlantis4010base\atlantis/wyreth/world.cpp C:\TEMP\atlantis4010\atlantis/wyreth/world.cpp
+*** C:\TEMP\atlantis4010base\atlantis/wyreth/world.cpp	Mon Dec 24 22:27:28 2001
+--- C:\TEMP\atlantis4010\atlantis/wyreth/world.cpp	Tue Jul 30 10:58:30 2002
+***************
+*** 2210,2216 ****
+  
+      regions.InitSetupGates( 1 );
+  	// Set up gates on all levels of the underworld
+! 	for(int i=2; i < Globals->UNDERWORLD_LEVELS+2; i++) {
+  		regions.InitSetupGates( i );
+  	}
+  	// Underdeep has no gates, only the possible shafts above.
+--- 2210,2216 ----
+  
+      regions.InitSetupGates( 1 );
+  	// Set up gates on all levels of the underworld
+! 	for(i=2; i < Globals->UNDERWORLD_LEVELS+2; i++) {
+  		regions.InitSetupGates( i );
+  	}
+  	// Underdeep has no gates, only the possible shafts above.

@@ -1,0 +1,246 @@
+Index: CHANGELOG
+===================================================================
+RCS file: /home/cvs/atlantis/CHANGELOG,v
+retrieving revision 1.106.2.8
+diff -u -r1.106.2.8 CHANGELOG
+--- CHANGELOG	17 Dec 2002 22:52:19 -0000	1.106.2.8
++++ CHANGELOG	11 Jan 2003 18:32:02 -0000
+@@ -608,3 +608,20 @@
+       setting for USE_PREPARE.  Under strict, the READY command MUST be
+       used or the unit will not use any battle items.  Under normal, the
+       unit will fall back on the battle items list.
++
++Changes from 4.0.10g -> 4.0.10h
++--------------------------------------------------
++   -- Fixed a bug which caused the first mage casting Earth Lore in a
++      region to recieve 2*level less silver than he should.
++   -- Fixed a bug where an army where all casualties were healed were
++      prevented from further moves or attacks.  Full healing should mean
++      no penalties.
++   -- Fixed a bug in output of rules when dealing with skill-based
++      maintainence.
++   -- Fixed a bug dealing with the cost of non-skilled units versus skilled
++      units when in a maintenance mode which requires skill based upkeep.
++      Units will now pay the maximum of the skill based upkeep or the normal
++      upkeep.  This means that GM's should probably *lower* the normal upkeep
++      to something more reasonable than 10/20 if they are using the skill
++      based upkeep unless they JUST want to penalize higher skilled leaders.
++
+Index: army.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/army.cpp,v
+retrieving revision 1.51.2.2
+diff -u -r1.51.2.2 army.cpp
+--- army.cpp	17 Dec 2002 22:52:19 -0000	1.51.2.2
++++ army.cpp	20 Dec 2002 17:14:30 -0000
+@@ -788,13 +788,15 @@
+ void Army::Win(Battle * b,ItemList * spoils)
+ {
+ 	int wintype;
+-	if (count - NumAlive()) wintype = WIN_DEAD;
+-	else wintype = WIN_NO_DEAD;
+ 
+ 	DoHeal(b);
+-
+ 	WriteLosses(b);
++
+ 	int na = NumAlive();
++
++	if (count - na) wintype = WIN_DEAD;
++	else wintype = WIN_NO_DEAD;
++
+ 	AList units;
+ 
+ 	forlist(spoils) {
+Index: genrules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/genrules.cpp,v
+retrieving revision 1.46.2.3
+diff -u -r1.46.2.3 genrules.cpp
+--- genrules.cpp	17 Dec 2002 22:52:19 -0000	1.46.2.3
++++ genrules.cpp	11 Jan 2003 19:00:51 -0000
+@@ -562,9 +562,7 @@
+ 		}
+ 	}
+ 	temp = "When a faction starts the game, it is given a one-man unit and ";
+-	temp += (Globals->START_MONEY -
+-			(Globals->LEADERS_EXIST ?
+-			 Globals->LEADER_COST : Globals->MAINTENANCE_COST));
++	temp += Globals->START_MONEY;
+ 	temp += " silver in unclaimed money.  Unclaimed money is cash that your "
+ 		"whole faction has access to, but cannot be taken away in battle ("
+ 		"silver in a unit's possessions can be taken in battle).  This allows "
+@@ -1698,8 +1696,9 @@
+ 		temp += "or food ";
+ 	temp += "to your units for maintenance, as a last resort.";
+ 	f.Paragraph(temp);
++	temp = "";
+ 	if(Globals->MULTIPLIER_USE == GameDefs::MULT_NONE) {
+-		temp = AString("This fee is generally ") + Globals->MAINTENANCE_COST +
++		temp += AString("This fee is generally ") + Globals->MAINTENANCE_COST +
+ 			" silver for a normal character";
+ 		if (Globals->LEADERS_EXIST) {
+ 			temp += AString(", and ") + Globals->LEADER_COST +
+@@ -1715,8 +1714,11 @@
+ 			temp += "All units ";
+ 		}
+ 		temp += "pay a fee based on the number of skill levels the character "
+-			"has.  This fee is $";
+-		temp += Globals->MAINTENANCE_MULTIPLIER + " per skill level";
++			"has.  This fee is the maximum of $";
++		temp += AString(Globals->MAINTENANCE_MULTIPLIER) + " per skill level";
++		temp += " and a cost of $";
++		temp += AString(Globals->MAINTENANCE_COST) + " for normal characters";
++		temp += AString(" or $") + Globals->LEADER_COST + " for leaders";
+ 		if(Globals->MULTIPLIER_USE != GameDefs::MULT_ALL) {
+ 			temp += ". All other characters pay a fee of ";
+ 			temp += Globals->MAINTENANCE_COST;
+@@ -2115,10 +2117,10 @@
+ 			"no other practical uses.  However, the profit margins on "
+ 			"these items are usually quite high. ";
+ 		if(Globals->FACTION_LIMIT_TYPE == GameDefs::FACLIM_FACTION_TYPES) {
+-			temp += "Buying and selling of these items in a region counts "
+-				"against a Trade faction's quota of regions in which it "
+-				"may undertake trade activity (note that buying and selling "
+-				"normal items does not).";
++			temp += "Buying of trade items in a region counts against a "
++				"Trade faction's quota of regions in which it may "
++				"undertake trade activity (note that buying and selling "
++				"normal items does not, nor does selling of Trade items).";
+ 		}
+ 		f.Paragraph(temp);
+ 	}
+Index: spells.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/spells.cpp,v
+retrieving revision 1.21.2.1
+diff -u -r1.21.2.1 spells.cpp
+--- spells.cpp	19 Oct 2002 04:03:42 -0000	1.21.2.1
++++ spells.cpp	18 Dec 2002 23:37:49 -0000
+@@ -1349,8 +1349,8 @@
+ {
+ 	int level = u->GetSkill(S_EARTH_LORE);
+ 
+-	int amt = r->Wages() * level * 2;
+ 	if (level > r->earthlore) r->earthlore = level;
++	int amt = r->Wages() * level * 2;
+ 
+ 	u->items.SetNum(I_SILVER,u->items.GetNum(I_SILVER) + amt);
+ 	u->Event(AString("Casts Earth Lore, raising ") + amt + " silver.");
+Index: unit.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/unit.cpp,v
+retrieving revision 1.53.2.3
+diff -u -r1.53.2.3 unit.cpp
+--- unit.cpp	17 Dec 2002 22:45:46 -0000	1.53.2.3
++++ unit.cpp	11 Jan 2003 19:16:33 -0000
+@@ -1151,7 +1151,7 @@
+ int Unit::MaintCost()
+ {
+ 	int retval = 0;
+-	int levels = 0;
++	int i;
+ 	if (type == U_WMON || type == U_GUARD || type == U_GUARDMAGE) return 0;
+ 
+ 	int leaders = GetMen(I_LEADERS);
+@@ -1159,44 +1159,34 @@
+ 	int nonleaders = GetMen() - leaders;
+ 	if (nonleaders < 0) nonleaders = 0;
+ 
+-	switch(Globals->MULTIPLIER_USE) {
+-		case GameDefs::MULT_NONE:
+-			retval += Globals->MAINTENANCE_COST * nonleaders;
+-			retval += Globals->LEADER_COST * leaders;
+-			break;
+-		case GameDefs::MULT_MAGES:
+-			if(type == U_MAGE) {
+-				retval += SkillLevels() * Globals->MAINTENANCE_MULTIPLIER;
+-			} else {
+-				retval += Globals->MAINTENANCE_COST * nonleaders;
+-				retval += Globals->LEADER_COST * leaders;
+-			}
+-			break;
+-		case GameDefs::MULT_LEADERS:
+-			levels = SkillLevels();
+-			if(levels)
+-				retval += levels * Globals->MAINTENANCE_MULTIPLIER * leaders;
+-			else
+-				retval += Globals->LEADER_COST * leaders;
+-			retval += Globals->MAINTENANCE_COST * nonleaders;
+-			break;
+-		case GameDefs::MULT_ALL:
+-			levels = SkillLevels();
+-			if(levels) {
+-				retval += levels*Globals->MAINTENANCE_MULTIPLIER*leaders;
+-				retval += levels*Globals->MAINTENANCE_MULTIPLIER*nonleaders;
+-			} else {
+-				retval += Globals->LEADER_COST * leaders;
+-				retval += Globals->MAINTENANCE_COST * nonleaders;
+-			}
+-	}
++	// Handle leaders
++	// Leaders are counted at maintenance_multiplier * skills in all except
++	// the case where it's not being used (mages, leaders, all)
++	if (Globals->MULTIPLIER_USE != GameDefs::MULT_NONE) {
++		i = leaders * SkillLevels() * Globals->MAINTENANCE_MULTIPLIER;
++		if (i < (leaders * Globals->LEADER_COST))
++			i = leaders * Globals->LEADER_COST;
++	} else
++		i = leaders * Globals->LEADER_COST;
++	retval += i;
++
++	// Handle non-leaders
++	// Non leaders are counted at maintenance_multiplier * skills only if
++	// all characters pay that way.
++	if (Globals->MULTIPLIER_USE == GameDefs::MULT_ALL) {
++		i = nonleaders * SkillLevels() * Globals->MAINTENANCE_MULTIPLIER;
++		if (i < (nonleaders * Globals->MAINTENANCE_COST))
++			i = nonleaders * Globals->MAINTENANCE_COST;
++	} else
++		i = nonleaders * Globals->MAINTENANCE_COST;
++	retval += i;
+ 
+ 	return retval;
+ }
+ 
+ void Unit::Short(int needed, int hunger)
+ {
+-	int n = 0;
++	int n = 0, i, levels;
+ 
+ 	if (faction->IsNPC())
+ 		return; // Don't starve monsters and the city guard!
+@@ -1231,7 +1221,15 @@
+ 				SetMen(i,GetMen(i) - 1);
+ 				n++;
+ 			}
+-			needed -= Globals->MAINTENANCE_COST;
++			if (Globals->MULTIPLIER_USE == GameDefs::MULT_ALL) {
++				levels = SkillLevels();
++				i = levels * Globals->MAINTENANCE_MULTIPLIER;
++				if (i < Globals->MAINTENANCE_COST)
++					i = Globals->MAINTENANCE_COST;
++				needed -= i;
++			} else
++				needed -= Globals->MAINTENANCE_COST;
++
+ 			hunger -= Globals->UPKEEP_MINIMUM_FOOD;
+ 			if (needed < 1 && hunger < 1) {
+ 				if (n) Error(AString(n) + " starve to death.");
+@@ -1245,7 +1243,15 @@
+ 			SetMen(I_LEADERS,GetMen(I_LEADERS) - 1);
+ 			n++;
+ 		}
+-		needed -= Globals->LEADER_COST;
++		if (Globals->MULTIPLIER_USE != GameDefs::MULT_NONE) {
++			levels = SkillLevels();
++			i = levels * Globals->MAINTENANCE_MULTIPLIER;
++			if (i < Globals->LEADER_COST)
++				i = Globals->LEADER_COST;
++			needed -= i;
++		} else
++			needed -= Globals->LEADER_COST;
++
+ 		hunger -= Globals->UPKEEP_MINIMUM_FOOD;
+ 		if (needed < 1 && hunger < 1) {
+ 			if (n) Error(AString(n) + " starve to death.");

@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<atlantisReport version="1">
+  <game version="5.0.0 (beta)" />
+  <rules set="Standard Atlantis" version="5.0.0 (beta)" />
+  <date month="March" year="1" />
+  <faction id="3">
+    <name>[!CDATA[Mighty Ducks (3)]]</name>
+    <war points="1" regions="0" max="10" />
+    <trade points="1" regions="0" max="10" />
+    <magic points="1" mages="1" maxMages="1" apprentices="0"
+      maxApprentices="2" />
+    <times receiving="1" />
+    <password exists="1" />
+    <inactive turns="2" />
+    <unclaimed amount="4530" />
+    <attitude faction="DEFAULT" type="Neutral" />
+  </faction>
+  <errors>
+    <comments>[!CDATA[Unit (312): SHOW: No such object.]]</comments>
+  </errors>
+  <events>
+    <comments>[!CDATA[Unit (312): Claims $500.]]</comments>
+    <comments>[!CDATA[Hooo Daa! (312): Studies force.]]</comments>
+  </events>
+  <skills>
+    <skill id="FORC" name="force">
+    [!CDATA[force [FORC] 1: The Force skill is not directly useful to
+      a mage, but is rather one of the Foundation skills on which
+      other magical skills are based. The Force skill determines the
+      power of the magical energy that a mage is able to use. Note
+      that a Force skill level of 0 does not indicate that a mage
+      cannot use magical energy, but rather can only perform magical
+      acts that do not require great amounts of power. This skill
+      costs 100 silver per month of study.]]
+    </skill>
+  </skills>
+  <items>
+    <comments>[!CDATA[horse [HORS], weight 50, walking capacity 20,
+      riding capacity 20. This is a mount. This mount requires riding
+      [RIDI] of at least level 1 to ride in combat. This mount gives a
+      minimum bonus of +1 when ridden into combat. This mount gives a
+      maximum bonus of +3 when ridden into combat. Units with horse
+      training [HORS] 1 may PRODUCE this item at a rate of 1 per
+      man-month.]]</comments>
+  </items>
+  <map>
+    <region x="36" y="14" z="" name="Tiny" terrain="swamp" pop="5187"
+      race="tribesmen" wealth="25935">
+      <town type="city">
+      <name>[!CDATA[Helmund]]</name>
+      </town>
+      <weather curr="clear" next="clear" />
+      <wages max="77805">15</wages>
+      <wanted>
+      </wanted>
+      <sell>
+        <market id="IRON" count="-1" price="75" />
+        <market id="WOOD" count="-1" price="75" />
+        <market id="STON" count="-1" price="75" />
+        <market id="FUR" count="-1" price="75" />
+        <market id="HERB" count="-1" price="75" />
+        <market id="HORS" count="-1" price="75" />
+        <market id="SWOR" count="-1" price="150" />
+        <market id="XBOW" count="-1" price="150" />
+        <market id="LBOW" count="-1" price="150" />
+        <market id="CARM" count="-1" price="150" />
+        <market id="PARM" count="-1" price="625" />
+        <market id="WAGO" count="-1" price="250" />
+        <market id="TMAN" count="-1" price="60" />
+        <market id="LEAD" count="-1" price="120" />
+      </sell>
+      <products>
+        <product id="GRAI" count="11" />
+        <product id="WOOD" count="13" />
+        <product id="HERB" count="19" />
+        <product id="ENTE" count="1296" />
+      </products>
+      <exit dir="North" x="36" y="14" z="" name="Tiny"
+        terrain="swamp">
+      </exit>
+      <exit dir="Northeast" x="36" y="14" z="" name="Tiny"
+        terrain="swamp">
+      </exit>
+      <exit dir="Southeast" x="36" y="14" z="" name="Tiny"
+        terrain="swamp">
+      </exit>
+      <exit dir="South" x="36" y="14" z="" name="Tiny"
+        terrain="swamp">
+      </exit>
+      <exit dir="Southwest" x="36" y="14" z="" name="Tiny"
+        terrain="swamp">
+      </exit>
+      <exit dir="Northwest" x="36" y="14" z="" name="Tiny"
+        terrain="swamp">
+      </exit>
+      <object id="0" />
+        <unit id="18" factionId="?" guard="1" />
+          <name>[!CDATA[City Guard (18)]]</name>
+          <item id="LEAD" count="120" illusion="0" />
+          <item id="SWOR" count="120" illusion="0" />
+        </unit>
+        <unit id="312" factionId="3" avoid="1" behind="1"
+          revealFaction="1" />
+          <name>[!CDATA[Hooo Daa! (312)]]</name>
+          <description>[!CDATA[dances with dolphins]]</description>
+          <capacity weight="10" walk="15" ride="0" fly="0" />
+          <skill id="FORC" level="1" days="30" />
+          <study skill="FIRE" />
+          <study skill="FSHI" />
+          <study skill="ESHI" />
+          <item id="LEAD" count="1" illusion="0" />
+          <item id="SILV" count="380" illusion="0" />
+        </unit>
+      </object>
+    </region>
+  </map>
+</atlantisReport>
+
+
+<!-- neodl6.grp.bf1.yahoo.com Wed Nov 27 12:31:58 UTC 2019 -->

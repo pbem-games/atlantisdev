@@ -1,0 +1,33 @@
+Index: astring.h
+===================================================================
+RCS file: /home/cvs/atlantis/astring.h,v
+retrieving revision 1.6
+diff -u -r1.6 astring.h
+--- astring.h	2001/10/19 23:04:33	1.6
++++ astring.h	2001/12/17 04:54:24
+@@ -58,7 +58,7 @@
+     AString *gettoken();
+     int getat();
+     AString *getlegal();
+-    AString *Trunc(int, int back=15);
++    AString *Trunc(int, int back=30);
+     int value();
+     AString *StripWhite();
+ 
+Index: unit.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/unit.cpp,v
+retrieving revision 1.39.2.1
+diff -u -r1.39.2.1 unit.cpp
+--- unit.cpp	2001/12/15 09:22:16	1.39.2.1
++++ unit.cpp	2001/12/17 04:54:26
+@@ -257,7 +257,8 @@
+ 		item = 0;
+ 
+ 	if(weapon || armor || item) {
+-		if(weapon) temp += AString(". ") + weaponstr;
++		temp += AString(". ");
++		if(weapon) temp += weaponstr;
+ 		if(armor) {
+ 			if(weapon) temp += ". ";
+ 			temp += armorstr;

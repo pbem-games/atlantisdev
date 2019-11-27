@@ -1,0 +1,99 @@
+*** Makefile	Thu Jan  9 19:56:34 2003
+--- Makefile	Thu Jan  9 05:03:46 2003
+***************
+*** 7,17 ****
+--- 7,28 ----
+  # 2000/MAR/14 Davis Kulis  Added the template code.
+
+  GAME ?= standard
++ CMODE ?= $(TERM)
++ MSUFF =
+
+  CPLUS = g++
+  CC = gcc
+  CFLAGS = -g -I. -I.. -Wall
+
++ ifeq ($(TERM),cygwin)
++ ifeq ($(CMODE),no-cygwin)
++ CFLAGS += -mno-cygwin
++ MSUFF = .mingw.exe
++ else
++ MSUFF = .exe
++ endif
++ endif
++
+  RULESET_OBJECTS = extra.o monsters.o rules.o world.o
+
+  ENGINE_OBJECTS = alist.o aregion.o army.o astring.o battle.o faction.o \
+***************
+*** 25,31 ****
+    $(GAME)/obj/i_rand.o
+
+  $(GAME)-m: objdir $(OBJECTS)
+! 	$(CPLUS) $(CFLAGS) -o $(GAME)/$(GAME) $(OBJECTS)
+
+  all: conquest ceran realms standard wyreth
+
+--- 36,42 ----
+    $(GAME)/obj/i_rand.o
+
+  $(GAME)-m: objdir $(OBJECTS)
+! 	$(CPLUS) $(CFLAGS) -o $(GAME)/$(GAME)$(MSUFF) $(OBJECTS)
+
+  all: conquest ceran realms standard wyreth
+
+***************
+*** 44,50 ****
+  wyreth: FORCE
+  	$(MAKE) GAME=wyreth
+
+! $(GAME)/$(GAME): FORCE
+  	$(MAKE) GAME=$(GAME)
+
+  all-clean: conquest-clean ceran-clean realms-clean standard-clean wyreth-clean
+--- 55,61 ----
+  wyreth: FORCE
+  	$(MAKE) GAME=wyreth
+
+! $(GAME)/$(GAME)$(MSUFF): FORCE
+  	$(MAKE) GAME=$(GAME)
+
+  all-clean: conquest-clean ceran-clean realms-clean standard-clean wyreth-clean
+***************
+*** 68,74 ****
+  	rm -f $(OBJECTS)
+  	if [ -d $(GAME)/obj ]; then rmdir $(GAME)/obj; fi
+  	rm -f $(GAME)/html/$(GAME).html
+! 	rm -f $(GAME)/$(GAME)
+
+  all-rules: conquest-rules ceran-rules realms-rules standard-rules wyreth-rules
+
+--- 79,85 ----
+  	rm -f $(OBJECTS)
+  	if [ -d $(GAME)/obj ]; then rmdir $(GAME)/obj; fi
+  	rm -f $(GAME)/html/$(GAME).html
+! 	rm -f $(GAME)/$(GAME)$(MSUFF)
+
+  all-rules: conquest-rules ceran-rules realms-rules standard-rules wyreth-rules
+
+***************
+*** 87,95 ****
+  wyreth-rules:
+  	$(MAKE) GAME=wyreth rules
+
+! rules: $(GAME)/$(GAME)
+  	(cd $(GAME); \
+! 	 ./$(GAME) genrules $(GAME)_intro.html $(GAME).css html/$(GAME).html \
+  	)
+
+  FORCE:
+--- 98,106 ----
+  wyreth-rules:
+  	$(MAKE) GAME=wyreth rules
+
+! rules: $(GAME)/$(GAME)$(MSUFF)
+  	(cd $(GAME); \
+! 	 ./$(GAME)$(MSUFF) genrules $(GAME)_intro.html $(GAME).css html/$(GAME).html \
+  	)
+
+  FORCE:

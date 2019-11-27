@@ -1,0 +1,274 @@
+Running a game of Atlantis with a dial-up account
+-------------------------------------------------
+
+The maintainer of this how-to is Anthony Briggs, <abriggs@iinet.net.au>.
+Email him with any suggestions, changes or criticisms. This how-to is
+currently in the beta stage, since I've only just set this up, and
+haven't tested it thoroughly yet. It works in principle though.
+
+
+Blurb:
+
+Want to run a game of Atlantis for your friends? Except that you're not
+1337 3nUf to have a UNIX box connected to the internet 24/7? Or perhaps
+you're a skinflint like me, and don't want to pay for a permanent
+broadband connection? Read on...
+
+The steps:
+
+0. What you will need 
+1. Get Atlantis and your GM scripts up and running
+2. Install python 
+3. Download and install GetMail 
+4. Configure GetMail
+5. Configure your GM scripts 
+6. Decide on settings/policy 
+7. Testing 
+8. Advertise your game
+
+
+0. What you will need
+
+To set this up you'll need a basic knowledge of how various network
+things work, such as POP, SMTP and email in general, plus be reasonably
+confident in setting up scripts and running them.
+
+To put this how-to into practice literally, you'll also need some sort
+of UNIX-like computer. Since GetMail is written in Python though, you
+may be able to apply what you learn here to other situations, eg.
+Windows running cygwin.
+
+As if you haven't guessed from the title, you'll also need a dialup
+account, which you can obtain from your nearest friendly ISP. Oh yeah,
+and a modem to use with it ;)
+
+
+1. Get Atlantis and your GM scripts up and running
+
+This is the first step - I'll assume that you've already compiled
+Atlantis, set up some sort of GM script such as Thera or JT's scripts,
+and run a few test games using local email addresses to make sure
+everything's working ok.
+
+
+2. Install python
+
+If you haven't installed python yet, now's the time to do it, although
+you'll probably need it for your scripts anyway. Most UNIX-like
+distributions will have v1.5 installed - upgrading to v2 is usually a
+good idea, since it makes your scripts run much faster.
+
+
+3. Download and install GetMail
+
+GetMail is a script similar in concept to FetchMail, but written in
+python. It has the advantage that it can feed mail directly to scripts -
+FetchMail doesn't appear to be able to do this from what I've read of
+the documentation.
+
+GetMail can be put pretty much anywhere you want it - there's a wrapper
+script included that sets the appropriate variables and runs the right
+python program. But for now you can unzip it into your home directory.
+
+The homepage for GetMail is 
+<http://www.qcc.ca/~charlesc/software/getmail-3.0/getmail.html>.
+
+
+4. Configure GetMail
+
+Here's where the fun starts. There are two places that GetMail needs
+tweaking - in the getmailrc file (usually within ~/.getmail) and in the
+getmail wrapper script (I put mine in ~/bin). The getmailrc file
+contains all sorts of options to do with getting your email from a POP
+server, and the getmail wrapper script is run to actually download the
+mail.
+
+The wrapper script is fairly simple, and just needs to know where the
+rest of the GetMail scripts are so that it can feed them the email.
+Here's what mine looks like:
+
+    #!/bin/sh
+    
+    /usr/local/bin/python /home/fracas/getmail/getmail.py $@
+
+Pretty straightforward, huh? The one included with GetMail has all sorts
+of fanciness for figuring out where python is, and setting the path to
+the rest of the scripts, but I have to cut all of that out when I got
+the following error from cron:
+
+    exec: : permission denied
+
+If anyone can shed any light on what's going on, I'd appreciate it. It'd
+be nice to have GetMail work 'out of the box'. I suspect that the line
+'exec "$PYTHON" ${GETMAILPATH}/getmail.py $@' is the culprit, but I'm
+not sure how to fix it.
+
+To configure ~/.getmail/getmailrc, just copy across the template from
+the GetMail directory, and edit it to your taste. Here's what mine looks
+like:
+
+    [default] 
+    
+    verbose = 1                        # Be verbose by default
+    readall = 0                        # Retrieve only new messages
+    delete = 0                         # Delete mail after retrieval
+    message_log = /var/log/getmail.log # Log message retrieval and delivery
+    timeout = 240                      # TCP timeout value
+    max_message_size = 0               # Don't retrieve messages over this size.
+                                       # 0 means no limit.
+    
+    [iinet]
+    server = mail.iinet.net.au
+    port = 110
+    username = fracas
+    password = "SekRitPassWeRd"
+    
+    postmaster = "|/home/fracas/atlantis/thera/atlantis.py"
+    message_log = "/home/fracas/getmail.log"
+    
+    no_delivered_to = 1       # Don't add a Delivered-To: header
+    no_received = 1           # Don't add a Received: header
+
+The important parts for you to change are the server, username and
+password settings, which should match your ISP's settings. The
+postmaster and message_log settings, which should match your wrapper
+script and the entry point for your script (in this case I'm using
+Thera, hence the atlantis.py).
+
+Once you've got to this stage, you should be able to run the wrapper
+script, and have it download messages (GetMail will give you a nice
+series of status lines as it works) and feed them into your script.
+Depending on how your GM scripts work, you should be able to see the
+emails appear in the logs. 
+
+Once you're happy that everything's working properly, you can change the 
+delete = 0 line to delete = 1, so that your account doesn't clog up with
+extra emails.
+
+
+5. Configure your GM scripts
+
+Right, you've got emails being delivered to your scripts, all you have
+to do now is make your scripts treat them properly! I'll show you how to
+set up Thera to respond properly - hopefully that'll give you the idea
+for other scripts. Or some nice people will email me and tell me how to
+do it.
+
+Firstly, you need to set the smtp server and the return email address
+for the script, so that the scripts can send emails out, and players can
+reply to them and have their email go right to the server. In Thera, you
+do this by settings in the config.py file. Here's what the server part
+of my config.py looks like:
+
+    server = { 'smtpserver' : 'mail.m.iinet.net.au',
+               'adminemail' : 'abriggs@iinet.net.au',
+               'basedir'    : '/home/fracas/atlantis/',
+               'baseemail'  : 'fracas@iinet.net.au',
+               'emailsep'   : '-',
+               'logfile'    : '/home/fracas/atlantis/log.txt',
+               'scriptdir'  : '/home/fracas/atlantis/thera/',
+               'tar'    : '/usr/bin/tar',
+               'zip'    : '/usr/bin/bzip2',
+               'unzip'  : '/usr/bin/bunzip2',
+               'zipsuffix'  : '.bz2',
+               }
+
+mail.m.iinet.net.au is my ISP's SMTP server, and the script's email
+address is fracas@iinet.net.au. The admin email is still the same; so
+are the rest of the settings.
+
+At this point, you should be able to send a test message (eg. #help or
+#create) to your script, and get a response back. You're almost there!
+
+The final step for me was to lobotomise Thera somewhat, since my ISP
+doesn't do hyphenated names in emails (eg. abriggs-fracas@iinet.net.au).
+I settled for a secondary email account, which I can get for free. I
+commented out the part that gets the game name from the email address,
+and made it 'fracas' all the time:
+
+    # Try and get the game name
+    #gamenamesearch = '\w+\\'+server['emailsep']+'(\w+)@'
+    #gamenametemp = re.search(gamenamesearch, mail['me'])
+    #if gamenametemp == None:
+    #    mail['gamename'] = None
+    #    failnicely(mail['them'], 're:'+mail['subject'], 
+    #               'Couldn\'t find the game name in the address: '+mail['me'], 
+    #               None, 'Unknown')
+    #else:
+    
+    mail['gamename'] = 'fracas'
+    thisgame = game[mail['gamename']]
+
+
+6. Automation
+
+Of course, you don't want to be manually running GetMail every once in a
+while to download your player's emails. The easier way to do it is to
+set up a cron job so that your UNIX box will do it for you. I use the
+following crontab:
+
+    # My crontab
+    
+    # Run getmail every 10 minutes to pull in new mail
+    0,10,20,30,40,50 * * * * /home/fracas/bin/getmail > /dev/null 2>&1
+
+Now cron will fire up GetMail every 10 minutes and download email to my
+GM script - easy, and I don't have to worry about remembering to type
+'~/bin/getmail' every 10 minutes.
+
+That little "> /dev/null 2>&1" on the end sends all of GetMail's output
+to /dev/null, which means you won't get lots of annoying cron output
+emails. You might want to leave it off if you're having trouble, that
+way any error messages will appear in your email. Of course, there's
+also your GM script and the GetMail logs to help you figure things out.
+
+
+7. Testing
+
+Now comes the dull bit. You need to run a couple of turns, and make sure
+that your game works as you'd planned it, emails don't go astray, etc. If
+possible, run a short test game with a few trusted beta-testers - other
+people will always use a program in ways that you hadn't thought of.
+No glitches? Good. Nothing annoys your players more than obvious bugs
+that you should have caught.
+
+
+8. Decide on settings/policy
+
+Now here comes the tricky part - making sure that your players are kept
+in the loop. You need to decide on a policy: how often the turns are
+run, and when, and then stick to it. Your players won't always be able
+to contact the server - after all, it's on an unreliable dialup account.
+You need to make sure that they understand this, and know that they need
+to get preliminary turns in early, and what will happen if their turns
+aren't in on time.
+
+One option is to try and be online at least once a day, and make sure
+that your players know roughly when you'll be available (eg. For at
+least an hour between 6pm and 10pm) so that they know when they can
+contact you and have a reasonable response time.
+
+Also, games with shorter turn times will be more stressful for your
+players, since they might only get a couple of goes to get their turns
+right, and might miss out if they get their last update in a bit late.
+
+
+9. Advertise your game
+
+All done? You're ready to advertise, and open the game to the world!
+Have fun!
+
+
+10. Other bits
+
+Here are a couple of ideas that might come in handy:
+
+If you set you email client and GetMail to save email on the server (eg.
+for 2-3 days), you can use your regular account for both normal email
+and game email :) Setting up a filter in your client to automatically
+delete orders might be good for your sanity, though.
+
+You could probably also use something along the lines of procmail to
+filter incoming email. If you make your players put a specific word in
+the subject, and/or search for words in the body (#atlantis springs to
+mind) you can send those emails off before they reach your inbox.

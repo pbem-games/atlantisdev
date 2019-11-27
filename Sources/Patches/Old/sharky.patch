@@ -1,0 +1,106 @@
+--- army.cpp.good	Thu Dec 13 07:22:40 2001
++++ army.cpp	Tue May  7 14:23:25 2002
+@@ -644,15 +644,16 @@
+ {
+ 	WriteLosses(b);
+ 	for (int i=0; i<count; i++) {
+ 		Soldier * s = soldiers[i];
+ 		if (i<notbehind) {
+ 			s->Alive(LOSS);
+ 		} else {
+-			if (s->unit->type==U_WMON && (ItemDefs[s->race].type&IT_MONSTER)) {
++			if (s->unit->type==U_WMON && (ItemDefs[s->race].type&IT_MONSTER) &&
++			    (!s->unit->GetFlag(FLAG_SUMMONED_MONSTER) || Globals->SUMMONED_MONSTERS_SPOILS)) {
+ 				GetMonSpoils(spoils,s->race);
+ 			}
+ 			s->Dead();
+ 		}
+ 		delete s;
+ 	}
+ }
+--- game.cpp.good	Sat Apr  6 20:27:38 2002
++++ game.cpp	Tue Apr 30 11:07:58 2002
+@@ -1964,28 +1964,31 @@
+ 			} else {
+ 				Faction * mfac = GetFaction(&factions,monfaction);
+ 				if (u->items.GetNum(I_IMP)) {
+ 					Unit *mon = GetNewUnit( mfac, 0 );
+ 					mon->MakeWMon(MonDefs[MONSTER_IMP].name,I_IMP,
+ 							u->items.GetNum(I_IMP));
+ 					mon->MoveUnit( r->GetDummy() );
++					mon->SetFlag(FLAG_SUMMONED_MONSTER, 1);
+ 					u->items.SetNum(I_IMP,0);
+ 				}
+ 				if (u->items.GetNum(I_DEMON)) {
+ 					Unit *mon = GetNewUnit( mfac, 0 );
+ 					mon->MakeWMon(MonDefs[MONSTER_DEMON].name,I_DEMON,
+ 							u->items.GetNum(I_DEMON));
+ 					mon->MoveUnit( r->GetDummy() );
++					mon->SetFlag(FLAG_SUMMONED_MONSTER, 1);
+ 					u->items.SetNum(I_DEMON,0);
+ 				}
+ 				if (u->items.GetNum(I_BALROG)) {
+ 					Unit *mon = GetNewUnit( mfac, 0 );
+ 					mon->MakeWMon(MonDefs[MONSTER_BALROG].name,I_BALROG,
+ 							u->items.GetNum(I_BALROG));
+ 					mon->MoveUnit( r->GetDummy() );
++					mon->SetFlag(FLAG_SUMMONED_MONSTER, 1);
+ 					u->items.SetNum(I_BALROG,0);
+ 				}
+ 				u->Event("Controlled demons break free!");
+ 			}
+ 		}
+ 	}
+ }
+--- unit.h.good	Fri Mar  1 15:55:46 2002
++++ unit.h	Tue Apr 30 11:05:54 2002
+@@ -89,14 +89,15 @@
+ #define FLAG_INVIS				0x0020
+ #define FLAG_CONSUMING_UNIT		0x0040
+ #define FLAG_CONSUMING_FACTION	0x0080
+ #define FLAG_NOSPOILS			0x0100
+ #define FLAG_FLYSPOILS			0x0200
+ #define FLAG_WALKSPOILS			0x0400
+ #define FLAG_RIDESPOILS			0x0800
++#define FLAG_SUMMONED_MONSTER   0x1000
+ 
+ class UnitId : public AListElem {
+ 	public:
+ 		UnitId();
+ 		~UnitId();
+ 		AString Print();
+ 
+--- gamedefs.h.good	Tue May  7 14:34:25 2002
++++ gamedefs.h	Tue May  7 14:05:37 2002
+@@ -376,13 +376,17 @@
+ 	int PROPORTIONAL_AMTS_USAGE;
+ 
+ 	// If this is enabled, then the ARMOR and WEAPON commands for selecting
+ 	// armor/weapon priorities for a unit are enabled. If a preferred weapon
+ 	// or armor isn't available, then the code will fall back to the internal
+ 	// list.
+ 	int USE_WEAPON_ARMOR_COMMAND;
++	
++	// If this is disabled, summoned monsters that break free won't give
++	// any spoil. If enabled they will (the usual manner)
++	int SUMMONED_MONSTERS_SPOILS;
+ 
+ };
+ 
+ extern GameDefs * Globals;
+ 
+ #endif
+--- rules.cpp.good	Tue May  7 14:35:06 2002
++++ rules.cpp	Tue May  7 14:00:54 2002
+@@ -148,10 +148,11 @@
+ 	1,	// USE_PREPARE_COMMAND
+ 	15,	// MONSTER_ADVANCE_MIN_PERCENT
+ 	0,	// MONSTER_ADVANCE_HOSTILE_PERCENT
+ 	0,	// HAVE_EMAIL_SPECIAL_COMMANDS
+ 	0,	// START_CITIES_START_UNLIMITED
+ 	1,	// PROPORTIONAL_AMTS_USAGE
+ 	1,  // USE_WEAPON_ARMOR_COMMAND
++	1,  // SUMMONED_MONSTERS_SPOILS
+ };
+ 
+ GameDefs * Globals = &g;

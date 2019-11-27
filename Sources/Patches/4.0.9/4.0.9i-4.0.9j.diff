@@ -1,0 +1,128 @@
+Index: aregion.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/aregion.cpp,v
+retrieving revision 1.38.2.1
+diff -u -r1.38.2.1 aregion.cpp
+--- aregion.cpp	2001/12/11 06:23:09	1.38.2.1
++++ aregion.cpp	2002/03/01 17:21:08
+@@ -1130,7 +1130,8 @@
+ {
+ 	int connections = 0;
+ 	for (int i = 0; i < NDIRS; i++) {
+-		if (HasExitRoad(i) && neighbors[i]->HasConnectingRoad(i))
++		if (HasExitRoad(i) && neighbors[i] &&
++				neighbors[i]->HasConnectingRoad(i))
+ 			connections ++;
+ 	}
+ 	return connections;
+Index: battle.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/battle.cpp,v
+retrieving revision 1.19
+diff -u -r1.19 battle.cpp
+--- battle.cpp	2001/11/27 02:58:11	1.19
++++ battle.cpp	2002/03/01 17:12:44
+@@ -444,12 +444,13 @@
+ 						if (u->attackorders) {
+ 							forlist(&(u->attackorders->targets)) {
+ 								UnitId * id = (UnitId *) elem;
+-								if (r->GetUnitId(id,u->faction->num) == tar) {
++								Unit *t = r->GetUnitId(id, u->faction->num);
++								if(!t) continue;
++								if (t == tar) {
+ 									u->attackorders->targets.Remove(id);
+ 									delete id;
+-									add = 1;
+-									break;
+ 								}
++								if (t->faction == tar->faction) add = 1;
+ 							}
+ 						}
+ 					}
+Index: faction.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/faction.cpp,v
+retrieving revision 1.12
+diff -u -r1.12 faction.cpp
+--- faction.cpp	2001/11/26 23:24:46	1.12
++++ faction.cpp	2002/03/01 17:21:37
+@@ -263,7 +263,7 @@
+ 	if (IsNPC()) return AString("NPC");
+ 
+ 	if( Globals->FACTION_LIMIT_TYPE == GameDefs::FACLIM_UNLIMITED) {
+-		return (AString("Unlmiited"));
++		return (AString("Unlimited"));
+ 	} else if(Globals->FACTION_LIMIT_TYPE == GameDefs::FACLIM_MAGE_COUNT) {
+ 		return( AString( "Normal" ));
+ 	} else if(Globals->FACTION_LIMIT_TYPE == GameDefs::FACLIM_FACTION_TYPES) {
+Index: genrules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/genrules.cpp,v
+retrieving revision 1.33
+diff -u -r1.33 genrules.cpp
+--- genrules.cpp	2001/11/29 18:43:56	1.33
++++ genrules.cpp	2002/03/01 17:22:06
+@@ -3534,7 +3534,7 @@
+ 		f.Paragraph(temp);
+ 		f.Paragraph("Examples");
+ 		temp = "Set the unit to select chain armor before plate armor.";
+-		temp2 = "WEAPON CARM PARM";
++		temp2 = "ARMOR CARM PARM";
+ 		f.CommandExample(temp, temp2);
+ 		temp = "Clear the preferred armor list.";
+ 		temp2 = "ARMOR";
+Index: runorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/runorders.cpp,v
+retrieving revision 1.25.2.1
+diff -u -r1.25.2.1 runorders.cpp
+--- runorders.cpp	2002/01/26 04:47:42	1.25.2.1
++++ runorders.cpp	2002/03/01 16:55:11
+@@ -477,6 +477,9 @@
+ 								drown = !(u->CanSwim());
+ 								break;
+ 							case GameDefs::WFLIGHT_MUST_LAND:
++								drown = !(u->CanReallySwim() || u->leftShip);
++								u->leftShip = 0;
++								break;
+ 							case GameDefs::WFLIGHT_NONE:
+ 								drown = !(u->CanReallySwim());
+ 								break;
+@@ -893,6 +896,7 @@
+ 			u->Error("LEAVE: Can't leave a ship in the ocean.");
+ 			return;
+ 		}
++		if(in->IsBoat() && u->CanSwim()) u->leftShip = 1;
+ 	} else {
+ 		to = r->GetObject(u->enter);
+ 		u->enter = 0;
+Index: unit.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/unit.cpp,v
+retrieving revision 1.39.2.2
+diff -u -r1.39.2.2 unit.cpp
+--- unit.cpp	2001/12/17 04:55:20	1.39.2.2
++++ unit.cpp	2002/03/01 16:56:19
+@@ -529,6 +529,7 @@
+ 	canattack = 1;
+ 	nomove = 0;
+ 	enter = 0;
++	leftShip = 0;
+ 	destroy = 0;
+ 	attackorders = 0;
+ 	stealorders = 0;
+Index: unit.h
+===================================================================
+RCS file: /home/cvs/atlantis/unit.h,v
+retrieving revision 1.16
+diff -u -r1.16 unit.h
+--- unit.h	2001/11/24 21:54:09	1.16
++++ unit.h	2002/03/01 16:55:46
+@@ -245,6 +245,7 @@
+ 		/* Orders */
+ 		int destroy;
+ 		int enter;
++		int leftShip;
+ 		UnitId *promote;
+ 		AList findorders;
+ 		AList giveorders;

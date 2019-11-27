@@ -1,0 +1,27 @@
+Index: army.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/army.cpp,v
+retrieving revision 1.34.2.1
+diff -u -r1.34.2.1 army.cpp
+--- army.cpp	2001/12/10 08:06:21	1.34.2.1
++++ army.cpp	2001/12/13 08:22:39
+@@ -256,13 +256,17 @@
+ 		// it's the right one.
+ 		if(!Globals->USE_PREPARE_COMMAND || (pBat->itemNum==unit->readyItem)) {
+ 			if(( pBat->flags & BattleItemType::SPECIAL ) && special != -1 ) {
+-				// This unit already has a special attack
++				// This unit already has a special attack so give the item
++				// back to the unit as they aren't going to use it.
++				unit->items.SetNum(item, unit->items.GetNum(item)+1);
+ 				continue;
+ 			}
+ 			if(pBat->flags & BattleItemType::MAGEONLY &&
+ 			   unit->type != U_MAGE && unit->type != U_GUARDMAGE &&
+ 			   unit->type != U_APPRENTICE) {
+-				// Only mages/apprentices can use this item
++				// Only mages/apprentices can use this item so give the
++				// item back to the unit as they aren't going to use it.
++				unit->items.SetNum(item, unit->items.GetNum(item)+1);
+ 				continue;
+ 			}
+ 

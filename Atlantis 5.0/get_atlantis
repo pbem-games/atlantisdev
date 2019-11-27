@@ -1,0 +1,9 @@
+
+echo "==========================="
+echo "Just hit Enter for password"
+echo "==========================="
+
+cvs -d :pserver:guest@cvs.dragoncat.net:/data/cvs login
+cvs -z3 -d :pserver:guest@cvs.dragoncat.net:/data/cvs checkout atlantis
+cvs -d :pserver:guest@cvs.dragoncat.net:/data/cvs logout
+

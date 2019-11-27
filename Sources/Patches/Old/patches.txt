@@ -1,0 +1,186 @@
+
+To follow is a list of patches available at:
+
+	http://www.murds.lv/pbem/atlantis/faili/patches/
+
+	*	*	*
+
+Atlantis patch #001 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+AString constructor fix to be more ANSI C++ friendly.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #002 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Assassination bug fix by Vit.
+Prevents segmentation faults caused by some assassination attempts.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #003 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Fix for soldier constructor bug. If soldier has no weapons, COMBAT skill
+level is used instead.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #004 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Default work order. If unit hasn't received any month order, it takes
+WORK as default month order.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #005 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Fix to prevent non-owner units from renaming or describing objects.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #006 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Fix for mistyped assignment. Bug had no effect in Standard game.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #007 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Fix by LLS to show some error messages also in check report.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #008 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Fix to allow "new rule" - amulet of true seeing prevents crimes by 
+soneone with a ring of unvisibility.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #009 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Yew bug fix, including fix for necessary skill read-in.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #010 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Fix to prevent segmentation fault if skill requested by SHOW SKILL doesn't
+exist. Shows error in check report instead.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #011 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 25, 2000
+
+Fix from Atlantis Plus.
+
+Fix to add faction number in new faction's name.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #012 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 26, 2000
+
+Patch to allow renaming of cities. Unit must be at least the owner of
+tower to rename village, fort to rename town and castle to rename city.
+New procedure ARegion::NotifyCity is created to notify all factions in 
+the city abou the new name.
+
+Renaming is done using one of the following orders:
+
+NAME VILLAGE "New Name"
+NAME TOWN "New Name"
+NAME CITY "New Name"
+
+All factions with units in this city are notified about the name change.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #013 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 27, 2000
+
+Fix #013 solves some specific problems of Latvian translation and is not
+released for English version.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #014 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 27, 2000
+
+Fix to prevent sailing of unfinished ships.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #015 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 28, 2000
+
+Original patch by Azthar Septragen.
+
+This patch introduces roads. BUILD 3 is necessary to build a road. One 
+road requires 75 stone. Two adjacent hexes must have connecting roads
+to gain any benefit. Roads need maintenance otherwise they decay after 
+some time. Benefits are reduced travel costs and increased wages in the 
+region.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #016 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+July 28, 2000
+
+Original patch by Davis Kulis.
+
+New template type - "map" template.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #017 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+August 24, 2000
+
+Small patch to prevent core dump when counting connecting roads for
+non-existant neighbour region.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #018 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+August 28, 2000
+
+Runesword patch. According to rules runesword causes fear.
+
+------------------------------------------------------------------------------
+
+Atlantis patch #019 by Atlantis Latvian Team, atlantis-dev@listes.murds.lv
+
+August 28, 2000
+
+Fix to prevent renaming of cities using unfinished objects.
+Now city renaming costs 500 of faction's unclaimed silver.
+Renaming of starting cities is not allowed, but each try still costs 500.

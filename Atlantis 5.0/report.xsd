@@ -1,0 +1,222 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+  <xsd:annotation>
+    <xsd:documentation xml:lang="en">
+      XLM Turn Report Format for Atlantis 5.0
+      Protected under GNU Public License.
+      See http://www.gnu.org
+    </xsd:documentation>
+  </xsd:annotation>
+
+  <!-- gameVersion is "x.y.z", like "5.0.0" -->
+  <xsd:simpleType name="versionType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="\d\.\d\.\d" />
+    </xsd:restriction>
+  </xsd:simpleType>
+
+  <xsd:element name="comment" base="xsd:string" />
+
+  <xsd:complexType name="attitude">
+    <xsd:attribute name="factionID" type="xsd:string" />
+    <xsd:attribute name="kind" type="xsd:string" />
+  </xsd:complexType>
+
+  <xsd:complexType name="factionEntity">
+    <xsd:sequence>
+      <xsd:element name="factionNumber" type="xsd:integer" />
+      <xsd:element name="factionName" type="xsd:string" />
+      <xsd:element name="warFactionPoints" type="xsd:integer" />
+      <xsd:element name="tradeFactionPoints" type="xsd:integer" />
+      <xsd:element name="magicFactionPoints" type="xsd:integer" />
+      <xsd:element name="warRegions" type="xsd:integer" />
+      <xsd:element name="tradeRegions" type="xsd:integer" />
+      <xsd:element name="magicMages" type="xsd:integer" />
+      <xsd:element name="magicApprentices" type="xsd:integer" />
+      <xsd:element name="times" type="xsd:boolean" />
+      <xsd:element name="passwordExists" type="xsd:boolean" />
+      <xsd:element name="inactiveTurns" type="xsd:integer" />
+      <xsd:element name="unclaimed" type="xsd:unsignedInt" />
+      <xsd:element ref="attitude" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="errorReport">
+    <xsd:sequence>
+      <xsd:element ref="comment" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="battleReport">
+    <xsd:sequence>
+      <xsd:element ref="comment" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="eventReport">
+    <xsd:sequence>
+      <xsd:element ref="comment" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="skillReport">
+    <xsd:sequence>
+      <xsd:element ref="comment" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="itemReport">
+    <xsd:sequence>
+      <xsd:element ref="comment" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="objectReport">
+    <xsd:sequence>
+      <xsd:element ref="comment" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="buyEntity">
+    <xsd:attribute name="id" type="xsd:string" />
+    <xsd:attribute name="count" type="xsd:integer" />
+    <xsd:attribute name="price" type="xsd:integer" />
+  </xsd:complexType>
+
+  <xsd:complexType name="sellEntity">
+    <xsd:attribute name="id" type="xsd:string" />
+    <xsd:attribute name="count" type="xsd:integer" />
+    <xsd:attribute name="price" type="xsd:integer" />
+  </xsd:complexType>
+
+  <xsd:complexType name="productEntity">
+    <xsd:attribute name="id" type="xsd:string" />
+    <xsd:attribute name="count" type="xsd:integer" />
+  </xsd:complexType>
+
+  <xsd:complexType name="regionIdentity">
+    <xsd:sequence>
+      <xsd:element name="regionName" type="xsd:string" />
+      <xsd:element name="terrain" type="xsd:string" />
+      <xsd:element name="xLoc" type="xsd:integer" />
+      <xsd:element name="yLoc" type="xsd:integer" />
+      <xsd:element name="zLoc" type="xsd:string" />
+      <xsd:element name="townName" type="xsd:string" minOccurs="0" maxOccurs="1" />
+      <xsd:element name="townType" type="xsd:string" minOccurs="0" maxOccurs="1" />
+    <xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="exitEntity">
+    <xsd:sequence>
+      <xsd:element ref="regionIdentity" />
+    </xsd:sequence>
+    <xsd:attribute name="dir" type="xsd:string" />
+  </xsd:complexType>
+
+  <xsd:complexType name="itemEntity">
+    <xsd:attribute name="id" type="xsd:string" />
+    <xsd:attribute name="count" type="xsd:integer" />
+    <xsd:attribute name="illusion" type="xsd:boolean" />
+  </xsd:complexType>
+
+  <xsd:complexType name="skillEntity">
+    <xsd:attribute name="name" type="xsd:string" />
+    <xsd:attribute name="level" type="xsd:integer" />
+    <xsd:attribute name="days" type="xsd:integer" />
+  </xsd:complexType>
+
+  <xsd:complexType name="unitEntity">
+    <xsd:sequence>
+      <xsd:element name="unitID" type="xsd:unsignedInt" />
+      <xsd:element name="name" type="xsd:string" />
+      <xsd:element name="factionID" type="xsd:string" />
+      <xsd:element name="description" type="xsd:string minOccurs="0" />
+      <xsd:element name="guard" type="xsd:boolean" />
+      <xsd:element name="avoid" type="xsd:boolean" minOccurs="0" maxOccurs="1" />
+      <xsd:element name="behind" type="xsd:boolean" minOccurs="0" maxOccurs="1" />
+      <xsd:element name="revealUnit" type="xsd:boolean" />
+      <xsd:element name="revealFaction" type="xsd:boolean" />
+      <xsd:element name="hold" type="xsd:boolean" />
+      <xsd:element name="tax" type="xsd:boolean" />
+      <xsd:element name="noaid" type="xsd:boolean" />
+      <xsd:element name="unitFood" type="xsd:boolean" />
+      <xsd:element name="factionFood" type="xsd:boolean" />
+      <xsd:element name="crossWater" type="xsd:boolean" />
+      <xsd:element name="weighlessSpoils" type="xsd:boolean" />
+      <xsd:element name="flyingSpoils" type="xsd:boolean" />
+      <xsd:element name="ridingSpoils" type="xsd:boolean" />
+      <xsd:element name="walkingSpoils" type="xsd:boolean" />
+      <xsd:element name="itemsWeight" type="xsd:integer" />
+      <xsd:element name="flyingCapacity" type="xsd:integer" />
+      <xsd:element name="ridingCapacity" type="xsd:boolean" />
+      <xsd:element name="walkingCapacity" type="xsd:boolean" />
+      <xsd:element name="combatSpell" type="xsd:string" minOccurs="0" />
+      <xsd:element name="readyWeapon" type="xsd:string" minOccurs="0" />
+      <xsd:element name="readyArmor" type="xsd:string" minOccurs="0" />
+      <xsd:element name="readyItem" type="xsd:string" minOccurs="0" />
+      <xsd:element ref="skillEntity" minOccurs="0" />
+      <xsd:element name="studyableSkill" type="xsd:string" minOccurs="0" />
+      <xsd:element ref="itemEntity" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="objectEntity">
+    <xsd:sequence>
+      <xsd:element name="name" type="xsd:string" />
+      <xsd:element name="kind" type="xsd:string" />
+      <xsd:element name="incomplete" type="xsd:integer" minOccurs="0" />
+      <xsd:element name="decay" type="xsd:string" minOccurs="0" />
+      <xsd:element name="inner" type="xsd:boolean" minOccurs="0" />
+      <xsd:element name="runes" type="xsd:boolean" minOccurs="0" />
+      <xsd:element name="description" type="xsd:string" minOccurs="0" />
+      <xsd:element name="enterable" type="xsd:boolean" minOccurs="0" />
+      <xsd:element ref="unitEntity" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="regionReport">
+    <xsd:sequence>
+      <xsd:element ref="regionIdentity" />
+      <xsd:element name="population" type="xsd:integer" minOccurs="0" maxOccurs="1" />
+      <xsd:element name="race" type="xsd:string" minOccurs="0" maxOccurs="1" />
+      <xsd:element name="wealth" type="xsd:integer" />
+      <xsd:element name="currWeather" type="xsd:string" />
+      <xsd:element name="nextWeather" type="xsd:string" />
+      <xsd:element name="wages" type="xsd:integer" />
+      <xsd:element ref="buyEntity" minOccurs="0" />
+      <xsd:element ref="sellEntity" minOccurs="0" />
+      <xsd:element ref="productEntity" minOccurs="0" />
+      <xsd:element ref="exitEntity" minOccurs="0" />
+      <xsd:element name="gateID" type="xsd:integer" minOccurs="0" />
+      <xsd:element ref="objectEntity" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="orderTemplate">
+    <xsd:sequence>
+      <xsd:element ref="comment" minOccurs="0" />
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="altantisReport">
+    <xsd:sequence>
+      <xsd:element ref="gameVersion" type="versionType" />
+      <xsd:element ref="rulesSet" type="xsd:string" />
+      <xsd:element ref="rulesVersion" type="versionType" />
+      <xsd:element name="month" type="xsd:string" />
+      <xsd:element name="year" type="xsd:integer" />
+      <xsd:element ref="factionEntity" />
+      <xsd:element ref="errorReport" minOccurs="0" />
+      <xsd:element ref="battleReport" minOccurs="0" />
+      <xsd:element ref="eventReport" minOccurs="0" />
+      <xsd:element ref="skillReport" minOccurs="0" />
+      <xsd:element ref="itemReport" minOccurs="0" />
+      <xsd:element ref="objectReport" minOccurs="0" />
+      <xsd:element ref="regionReport" minOccurs="0" />
+    </xsd:sequence>
+    <xsd:attribute name="version" type="integer" />
+  </xsd:complexType>
+
+</xsd:schema>
+
+<!-- neodl3.grp.bf1.yahoo.com Wed Nov 27 12:32:04 UTC 2019 -->

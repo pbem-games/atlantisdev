@@ -1,0 +1,40 @@
+Index: parseorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/parseorders.cpp,v
+retrieving revision 1.35
+diff -u -r1.35 parseorders.cpp
+--- parseorders.cpp	2001/11/30 17:47:20	1.35
++++ parseorders.cpp	2002/01/26 04:32:35
+@@ -510,6 +510,12 @@
+ 		unit->ClearOrders();
+ 		unit = 0;
+ 	}
++
++	/* Clean up if we had a bad form order and no end form */
++	if(former && pCheck) {
++		former->ClearOrders();
++		former = 0;
++	}
+ }
+ 
+ void Game::ProcessOrder(int orderNum, Unit *unit, AString *o,
+Index: runorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/runorders.cpp,v
+retrieving revision 1.25
+diff -u -r1.25 runorders.cpp
+--- runorders.cpp	2001/11/29 18:43:56	1.25
++++ runorders.cpp	2002/01/26 04:30:57
+@@ -1971,6 +1971,12 @@
+ 		return 0;
+ 	}
+ 
++	if(u == t) {
++		u->Error(AString("GIVE: Attempt to give ")+ItemString(o->item,amt)+
++				" to self.");
++		return 0;
++	}
++
+ 	// New RULE -- Must be able to see unit to give something to them!
+ 	if(!u->CanSee(r, t) &&
+ 			(t->faction->GetAttitude(u->faction->num) < A_FRIENDLY)) {

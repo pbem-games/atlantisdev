@@ -1,0 +1,145 @@
+diff -u old/runorders.cpp 406/runorders.cpp
+--- old/runorders.cpp	Wed May 30 11:37:37 2001
++++ 406/runorders.cpp	Sun Jun 17 01:48:07 2001
+@@ -1440,18 +1440,22 @@
+             Object * obj = (Object *) elem;
+             forlist((&obj->units)) {
+                 Unit * u = (Unit *) elem;
+-                if (u->needed && ((!consume) || 
++                if (u->needed && ((!consume) ||
+                                   (u->GetFlag(FLAG_CONSUMING_UNIT) ||
+                                    u->GetFlag(FLAG_CONSUMING_FACTION)))) {
+-                    int amount = u->items.GetNum(item);
+-                    if (amount) {
+-                        u->needed -= amount * value;
+-                        if (u->needed < 0) {
+-                            u->items.SetNum(item, -(u->needed / value));
+-                            u->needed = 0;
+-                        } else {
+-                            u->items.SetNum(item, 0);
+-                        }
++                    int has_amount = u->items.GetNum(item);
++                    if (has_amount) {
++						int amount = has_amount;
++						if (item != I_SILVER && amount > u->GetMen() - u->feeded)
++								amount = u->GetMen() - u->feeded;
++						if (amount * value > u->needed)
++								amount = u->needed / value;
++						if (amount) {
++                        	u->needed -= amount * value;
++                        	if (u->needed < 0) u->needed = 0;
++                        	u->items.SetNum(item, has_amount - amount);
++                        	if (item != I_SILVER) u->feeded += amount;
++						}
+                     }
+                 }
+             }
+@@ -1476,17 +1480,19 @@
+                             Unit * u2 = (Unit *) elem;
+                             
+                             if (u->faction == u2->faction && u != u2) {
+-                                int amount = u2->items.GetNum(item);
+-                                if (amount) {
+-                                    u->needed -= amount * value;
+-                                    if (u->needed <= 0) {
+-                                        u2->items.SetNum(item,
+-                                                         -(u->needed / value));
+-                                        u->needed = 0;
+-                                        break;
+-                                    } else {
+-                                        u2->items.SetNum(item, 0);
+-                                    }
++                                int has_amount = u2->items.GetNum(item);
++                                if (has_amount) {
++									int amount = has_amount;
++									if (item != I_SILVER && amount > u->GetMen() - u->feeded)
++												amount = u->GetMen() - u->feeded;
++									if (amount * value > u->needed)
++											amount = u->needed / value;
++									if (amount) {
++                                    	u->needed -= amount * value;
++                                    	if (u->needed < 0) u->needed = 0;
++                                    	u2->items.SetNum(item, has_amount - amount);
++                                   		if (item != I_SILVER) u->feeded += amount;
++									}
+                                 }
+                             }
+                         }
+@@ -1513,40 +1519,29 @@
+                         Object * obj2 = (Object *) elem;
+                         forlist((&obj2->units)) {
+                             Unit * u2 = (Unit *) elem;
+-                            if (u->faction != u2->faction && 
++                            if (u->faction != u2->faction &&
+                                 u2->GetAttitude(r,u) == A_ALLY) {
+-                                int amount = u2->items.GetNum(item);
+-                                if (amount) {
+-                                    u->needed -= amount * value;
+-                                    if (u->needed <= 0) {
+-                                        u2->Event(*(u->name) + " borrows " +
+-                                                  ItemString(item,
+-                                                             amount +
+-                                                             (u->needed /
+-                                                              value)) +
+-                                                  " for maintenance.");
+-                                        u->Event(AString("Borrows ") + 
+-                                                 ItemString(item,
+-                                                            amount +
+-                                                            (u->needed /
+-                                                             value)) +
+-                                                 " from " + *(u2->name) +
+-                                                 " for "
+-                                                 "maintenance.");
+-                                        u2->items.SetNum(item, -(u->needed /
+-                                                                 value));
+-                                        u->needed = 0;
+-                                        break;
+-                                    } else {
+-                                        u2->items.SetNum(item, 0);
+-                                        u2->Event(*(u->name) + " borrows " + 
+-                                                  ItemString(item, amount) +
++                                int has_amount = u2->items.GetNum(item);
++                                if (has_amount) {
++									int amount = has_amount;
++									if (item != I_SILVER && amount > u->GetMen() - u->feeded)
++											amount = u->GetMen() - u->feeded;
++                                    if (amount * value > u2->needed)
++											amount = u->needed / value;
++									if (amount) {
++                                    	u->needed -= amount * value;
++	                                    if (u->needed <= 0) u->needed = 0;
++    	                                u2->items.SetNum(item, 0);
++        	                            u2->Event(*(u->name) + " borrows " +
++            	                                  ItemString(item, amount) +
+                                                   " for maintenance.");
+-                                        u->Event(AString("Borrows ") + 
++                	                    u->Event(AString("Borrows ") +
+                                                  ItemString(item, amount) +
+                                                  " from " + *(u2->name) +
+                                                  " for maintenance.");
+-                                    }
++                    	                u2->items.SetNum(item, has_amount - amount);
++                        	            if (item != I_SILVER) u->feeded += amount;
++									}
+                                 }
+                             }
+                         }
+@@ -1570,6 +1565,7 @@
+                 forlist((&obj->units)) {
+                     Unit * u = (Unit *) elem;
+                     u->needed = u->MaintCost();
++					u->feeded = 0;
+                 }
+             }
+         }
+diff -u old/unit.h 406/unit.h
+--- old/unit.h	Mon May 21 06:06:46 2001
++++ 406/unit.h	Sun Jun 17 01:18:01 2001
+@@ -222,6 +222,7 @@
+     int combat;
+     AList oldorders;
+     int needed; /* For assessing maintenance */
++    int feeded; /* For assessing maintenance - how much food items was consumed this turn */
+     int losses;
+     
+     /* Orders */

@@ -1,0 +1,71 @@
+Index: aregion.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/aregion.cpp,v
+retrieving revision 1.38
+retrieving revision 1.38.2.1
+diff -u -r1.38 -r1.38.2.1
+--- aregion.cpp	2001/11/30 21:21:27	1.38
++++ aregion.cpp	2001/12/11 06:23:09	1.38.2.1
+@@ -1824,7 +1824,7 @@
+ 			}
+ 			if(sawgate) {
+ 				f->PutStr(AString("There is a Gate here (Gate ") + gate +
+-						" of " + (pRegions->numberofgates - 1) + ").");
++						" of " + (pRegions->numberofgates) + ").");
+ 				f->PutStr("");
+ 			}
+ 		}
+@@ -3083,7 +3083,7 @@
+                 index++;
+                 index = index % numberofgates;
+             }
+-            r->gate = index;
++            r->gate = index+1;
+             used[index] = 1;
+         }
+     }
+Index: spells.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/spells.cpp,v
+retrieving revision 1.13
+retrieving revision 1.13.2.2
+diff -u -r1.13 -r1.13.2.2
+--- spells.cpp	2001/11/24 21:54:09	1.13
++++ spells.cpp	2001/12/11 18:01:11	1.13.2.2
+@@ -868,8 +868,8 @@
+ 
+ 	u->Event(AString("Constructs a Gate in ")+r->ShortPrint( &regions )+".");
+ 	u->SetMoney(u->GetMoney() - 1000);
+-	r->gate = regions.numberofgates;
+ 	regions.numberofgates++;
++	r->gate = regions.numberofgates;
+ 	r->NotifySpell(u,S_ARTIFACT_LORE, &regions );
+ }
+ 
+@@ -1447,7 +1447,7 @@
+ 	if (order->gate == -1) {
+ 		int good = 0;
+ 		int gatenum = getrandom(regions.numberofgates);
+-		tar = regions.FindGate(gatenum);
++		tar = regions.FindGate(gatenum+1);
+ 
+ 		if(tar && tar->zloc == r->zloc) good = 1;
+ 		if(tar && nexgate && tar->zloc == ARegionArray::LEVEL_SURFACE)
+@@ -1455,7 +1455,7 @@
+ 
+ 		while( !good ) {
+ 			gatenum = getrandom(regions.numberofgates);
+-			tar = regions.FindGate(gatenum);
++			tar = regions.FindGate(gatenum+1);
+ 			if(tar && tar->zloc == r->zloc) good = 1;
+ 			if(tar && nexgate && tar->zloc == ARegionArray::LEVEL_SURFACE)
+ 				good = 1;
+@@ -1463,7 +1463,7 @@
+ 
+ 		u->Event("Casts Random Gate Jump.");
+ 	} else {
+-		if (order->gate < 0 || order->gate >= regions.numberofgates) {
++		if (order->gate < 1 || order->gate > regions.numberofgates) {
+ 			u->Error("CAST: No such target gate.");
+ 			return;
+ 		}

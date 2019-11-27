@@ -1,0 +1,227 @@
+
+This example shows a region entry in the game.in file for an ocean hex.
+*********************************************************************************************************************
+Atlantis Ocean //Name of region
+1 //Number
+0 //Type
+1 //Building Sequence
+0 //Gate
+-1 //Race
+0 //Population
+0 //Base Population
+0 //Wages
+0 //Max Wages
+0 //Money
+0 //Town Flag - If this were a 1 then there would be town info following it
+0 //X loc
+0 //Y loc
+1 //Z loc
+1 //Number of produced items in this hex 
+24 //Item type
+34 //Amount
+34 //Base Amount
+4 //Skill
+1 //Level
+1 //Productivity
+0 //Number of markets in this region - If this were a 1 then market info would follow
+1 //Number of  objects in this region
+0 //Quantity of this object
+0 //Type of object
+0 //Incomplete flag?
+Dummy //Object name
+none //Object description
+-1 //Inner flag
+0 //Runes
+0 //Number of units inside this object. If greater than zero, then the next few lines would be the unit numbers
+*********************************************************************************************************************
+
+This next example is one for a land hex with a city
+
+Lochmaben //Region name
+2 //Number
+1 //Type
+1 //Building Sequence
+0 //Gate
+5 //Race
+441 //Population
+441 //Base Population
+14 //Wages
+14 //Max Wages
+14556 //Money
+1 //Town Flag - Is set to 1, so we have a town listed next
+Doedbygd //Town name
+1985 //Population
+1985 //Base Population
+2 //Xloc
+0 //Yloc
+1 //Zloc
+5 //Number of products in this region
+18 //Item Type - Grain in this case
+66 //Amount
+66 //Base Amount
+22 //Skill
+1 //Level
+1 //Productivity
+26 //Item Type - Horse
+29 //Amount
+29 //Base Amount
+6 //Skill
+1 //Level
+1 //Productivity
+35 //Item type - Whorse
+9 //Amount
+9 //Base amount
+6 //Skill
+1 //Level
+1 //Productivity
+17 //Item type - Silver
+2911 //Amount
+0 //Base amount
+-1 //Skill
+1 //Level
+16 //Productivity
+17 //Item type - Silver
+727 //Amount
+0 //Base amount
+12 //Skill
+1 //Level
+20 //Productivity
+12 //Number of markets in this region?
+1 //Type
+18 //Item
+21 //Price
+80 //Amount
+441 //Minpop
+2441 //Maxpop
+80 //Min amount
+160 //Max amount
+21 //Base price
+1 //Type
+19 //Item
+21 //Price
+61 //Amount
+441 //Min population
+2441 //Max population
+61 //Min amount
+122 //Max amount
+21 //Base price
+1 //Market type
+24 //Item
+15 //Price
+98 //Amount
+441 //Min pop
+2441 //Max pop
+98 //Min amount
+196 //Max amount
+15 //Base price
+0 //Market type
+28 //Item
+102 //Price
+0 //Amount
+1441 //Min population
+4441 //Max population
+0 //Min amount
+83 //Max amount
+102 //Base price
+1 //Martket type
+31 //Item
+310 //Price
+0 //Amount
+1441 //Min population
+4441 //Max population
+0 //Min amount
+89 //Max amount
+310 //Base price
+1 //Market type
+35 //Item
+112 //Price
+0 //Amount
+2441 //Min population
+4441 //Max population
+0 //Min amount
+23 //Max amount
+112 //Base Price
+0 //Market type
+43 //Item
+64 //Price
+0 //Amount
+2441 //Min population
+4441 //Max population
+0 //Min amount
+81 //Max amount
+64 //Base price
+0 //Market type
+44 //Item
+70 //Price
+0 //Amount
+2441 //Min population
+4441 //Max population
+0 //Min amount
+68 //Max amount
+70 //Base price
+1 //Martket type
+47 //Item
+91 //Price
+0 //Amount
+2441 //Min population
+4441 //Max population
+0 //Min amount
+63 //Max amount
+91 //Base price
+1 
+58
+112
+0
+2441
+4441
+0
+59
+112
+0
+5
+64
+485
+0
+10000
+0
+2000
+64
+0
+0
+128
+97
+0
+10000
+0
+400
+128
+1 //Number of objects in this region
+0 //Type of object
+0 //Quantity 
+0 //Incomplete flag
+Dummy //Object Name
+none //Object description
+-1 //Inner flag
+0 //Runes 
+1 //Number of units inside this object - Unit detailed below
+City Guard (2) //Name of unit
+none //Description of unit
+2 //Number of unit
+2 //Type of unit
+1 //Faction
+1 //Guard flag
+0 //Reveal flag
+8 //Flags
+3 //Number of items this unit has
+0 //Item type
+80 //Number
+27 //Item Type
+80 //Number
+17 //Item type
+4000 //Number
+2 //Number of skills for this unit
+14 //Skill type - Combat in this case
+7200 //Days
+19 //Skill Type - Observation in this case
+7200 //Days
+-1 //Combat flag

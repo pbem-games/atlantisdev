@@ -1,0 +1,108 @@
+Index: alist.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/alist.cpp,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 alist.cpp
+--- alist.cpp	2001/02/11 08:17:21	1.1.1.1
++++ alist.cpp	2002/04/06 20:17:07
+@@ -126,3 +126,14 @@
+ int AList::Num() {
+   return num;
+ }
++
++int AList::NextLive(AListElem **copy, int size, int pos) {
++	while (++pos < size) {
++		for (AListElem *elem = First(); elem; elem = elem->next) {
++			if (elem == copy[pos])
++				return pos;
++		}
++	}
++	return pos;
++}
++
+Index: alist.h
+===================================================================
+RCS file: /home/cvs/atlantis/alist.h,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 alist.h
+--- alist.h	2001/02/11 08:17:22	1.1.1.1
++++ alist.h	2002/04/09 04:37:05
+@@ -49,17 +49,32 @@
+   AListElem * Next(AListElem *);
+   AListElem * First();
+   int Num();
++  /* Helper for the fixed forlist */
++  int NextLive(AListElem **copy, int size, int pos);
+ private:
+   AListElem *list;
+   AListElem *lastelem;
+   int num;
+ };
+ 
+-#define forlist(l)	AListElem * elem, * _elem2; \
+-      for ( elem=(l)->First(), \
+-      _elem2 = (elem ? (l)->Next(elem) : 0); \
+-      elem; \
+-      elem = _elem2, \
+-      _elem2 = (_elem2 ? ((l)->Next(_elem2)) : 0))
++#define forlist(l) \
++	AListElem *elem, *_elem2; \
++	for (elem=(l)->First(), \
++			_elem2 = (elem ? (l)->Next(elem) : 0); \
++			elem; \
++			elem = _elem2, \
++			_elem2 = (_elem2 ? ((l)->Next(_elem2)) : 0))
++
++#define forlist_safe(l) \
++	int size = (l)->Num(); \
++	AListElem **copy = new AListElem*[size]; \
++	AListElem *elem; \
++	int pos; \
++	for (pos = 0, elem = (l)->First(); elem; elem = elem->next, pos++) { \
++		copy[pos] = elem; \
++	} \
++	for (pos = 0; \
++			pos < size ? (elem = copy[pos], 1) : (delete [] copy, 0); \
++			pos = (l)->NextLive(copy, size, pos))
+ 
+ #endif
+Index: game.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/game.cpp,v
+retrieving revision 1.45.2.2
+diff -u -r1.45.2.2 game.cpp
+--- game.cpp	2002/01/11 20:43:56	1.45.2.2
++++ game.cpp	2002/04/06 20:27:38
+@@ -92,7 +92,7 @@
+     case 1:
+         i = reg->CountWMons();
+         return (i ? ((AString) i) : (AString(" ")));
+-    case 2:
++    case 2: {
+         forlist(&reg->objects) {
+             Object * o = (Object *) elem;
+             if (!(ObjectDefs[o->type].flags & ObjectType::CANENTER)) {
+@@ -104,6 +104,7 @@
+             }
+         }
+         return " ";
++	}
+     case 3:
+         if (reg->gate) return "*";
+         return " ";
+Index: runorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/runorders.cpp,v
+retrieving revision 1.25.2.2
+diff -u -r1.25.2.2 runorders.cpp
+--- runorders.cpp	2002/04/06 20:14:42	1.25.2.2
++++ runorders.cpp	2002/04/06 20:50:56
+@@ -252,7 +252,7 @@
+ 		ARegion * r = (ARegion *) elem;
+ 		forlist(&r->objects) {
+ 			Object * o = (Object *) elem;
+-			forlist(&o->units) {
++			forlist_safe(&o->units) {
+ 				Unit * u = (Unit *) elem;
+ 				if (u->stealorders) {
+ 					if (u->stealorders->type == O_STEAL) {

@@ -1,0 +1,75 @@
+Geographical Map
+
+Level 0: Nexus
+
+Level 1: Surface
+Map (0,0)
+-   -   -   -   -   -   -   -   p   P   p   -   m   -   -   -   
+  -   -   -   -   -   t   t   t   P   p   -   p   -   -   -   -   
+-   -   -   -   -   -   t   t   t   p   -   P   m   -   -   -   
+  P   -   -   -   -   t   T   -   p   P   p   P   -   -   -   -   
+p   p   -   -   -   t   -   -   p   P   p   p   m   -   -   -   
+  p   -   -   -   -   -   -   -   P   p   P   p   -   -   -   p   
+p   P!  -   -   -   t   -   -   -   P   P!  p   -   -   -   -   
+  p   p   -   -   -   -   -   -   p   p   p   -   -   -   -   P   
+s   s   j   -   -   d   -   -   -   p   -   -   -   -   -   -   
+  s   s   j   -   -   -   -   -   -   p   -   -   -   d   -   -   
+-   s   -   -   -   d   -   -   -   p   -   -   D   d   -   -   
+  s   j   j   -   -   -   -   -   -   -   -   d   d   d   -   -   
+s   s   j   -   -   d   -   -   -   -   -   -   d   -   P   p   
+  s*  j   -   -   -   d   -   -   -   -   -   -   d   p   p   P   
+p   s   -   -   -   -   d   -   -   -   -   -   -   d   -   p   
+  s   j   -   -   -   d   -   -   -   -   -   -   -   -   -   p   
+p   j   -   -   -   -   d   -   -   p   -   -   j   J!  -   p   
+  j   j   -   -   -   -   -   -   s   p   -   -   J   -   j   J   
+j   -   j   -   -   -   -   s   s   p   p   -   j   j   -   j   
+  j   j   j   s   s   -   -   s   s   P   p   -   j   j   j   j   
+j*  j   j   j   S   -   -   s   s   s   p   -   j   j   j   j*  
+  J   j   j   s   s   -   -   -   s   P   -   -   j   j   -   j   
+-   j   -   j   s   -   -   -   S!  s   p   -   j   j   j   j   
+  j   j   j   s   s   -   -   -   m   p   -   -   j   j   -   -   
+-   -   -   p   s   -   -   -   -   m   p   -   J   j   f   -   
+  -   -   P*  p   S!  -   -   -   M   m   p   -   f   f   p   -   
+p   -   -   p   s   -   -   -   m   m   m   -   -   f   P!  -   
+  p   -   P   -   s   -   -   -   M   m   -   -   f   f   -   p   
+p   p   p   p   s   -   -   -   m*  m   -   -   f   -   P   p   
+  p   p   p*  -   s   -   -   -   m   m   -   -   -   -   p   -   
+-   -   -   -   -   -   -   -   m   m   -   -   -   -   -   -   
+  -   -   -   -   -   -   -   m   M   -   -   -   -   -   -   -   
+
+
+Level 2: Underworld
+Map (0,0)
+ u   t   u   U   u   u   u   u   
+/   /     \ / \ /     \ /       
+   t   t | u | u   u | u | u | u 
+    \   \   \ / \ / \   \   \ / \ 
+ t   t   u | u   u   u | u   u   
+/         \   \     / \   \ / \ 
+   t | t | u | u | u | u | u | u 
+      / \ / \   \   \   \ / \ /   
+ t | t | u   u   u | u | u   u   
+/ \ /     \ / \ /   /   / \ / \ 
+   t | t | u   u | u | u | u | u 
+      /   / \ / \ /     \   \ /   
+ u*  t   u | u | u   u | u | u | 
+/   / \ /     \ / \ / \ / \   \ 
+ | u | t   u   u | u | u | u   u 
+      / \ / \ / \ / \ / \ / \ / \ 
+ u | t | t | u | u | u | u | c | 
+/ \ / \     / \ / \ / \   \   \ 
+ | u   t   u | u | u | u | c | c*
+  / \   \   \ /   / \ / \   \ / \ 
+ c*| u   u | u | c | c | c | c | 
+  \   \       \   \ / \ / \ / \ 
+ | c | t | u   c | c | c | c | c 
+    \ /   / \ / \ / \ / \ /   / \ 
+ c | c*| u | u | c | c | c | C | 
+/ \ /   /   /   / \ / \   \ /   
+ | c | u | u | u | c | c | c | c 
+  /   /   / \ /   / \ /   /   / \ 
+ c | c*| U   u | c*| c | c | C   
+/   / \   \ / \ / \ / \ / \ / \ 
+   c   u   u   u   c   c   C   c 
+                                  
+

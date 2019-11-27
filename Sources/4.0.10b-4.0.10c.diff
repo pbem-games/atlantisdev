@@ -1,0 +1,107 @@
+Index: CHANGELOG
+===================================================================
+RCS file: /home/cvs/atlantis/CHANGELOG,v
+retrieving revision 1.106.2.2
+diff -u -r1.106.2.2 CHANGELOG
+--- CHANGELOG	14 Sep 2002 19:48:15 -0000	1.106.2.2
++++ CHANGELOG	3 Oct 2002 19:45:59 -0000
+@@ -557,9 +557,16 @@
+    -- Fixed bug with extremely large worlds and more than 10000 units
+    -- Fixed bug with small worlds/levels where a town was less than 9
+       hexes from *both* poles AND LESS_ARTIC_TOWNS was enabled.  This
+-	  caused very large negative/positive numbers for wages and such.
++      caused very large negative/positive numbers for wages and such.
+    -- Fixed a bug in random number generation when getrandom was called
+       on a negative number (found while fixing the one above)
+    -- Fixed a potential crash when evicting someone who had already
+       left the building.
+    -- Fixed a couple of typos in the generated rules.
++
++Changes from 4.0.10b -> 4.0.10c
++--------------------------------------------------
++   -- Fixed probability of town generation bug from Jan's patch.
++   -- Fixed bug in movement costs when WEATHER_EXISTS was 0.
++   -- Added 'Spoils: none' line to indecisive battles to make ACB happier
++   -- Fixed segfault in skill starvation code.
+Index: aregion.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/aregion.cpp,v
+retrieving revision 1.50.2.2
+diff -u -r1.50.2.2 aregion.cpp
+--- aregion.cpp	14 Sep 2002 19:44:35 -0000	1.50.2.2
++++ aregion.cpp	18 Sep 2002 18:20:04 -0000
+@@ -278,7 +278,7 @@
+ 		int adjacent = 0;
+ 		int prob = Globals->TOWN_PROBABILITY;
+ 		if (prob < 1) prob = 100;
+-		int townch = (int) 800 * (100 / prob);
++		int townch = (int) 80000 / prob;
+ 		if (Globals->TOWNS_NOT_ADJACENT) {
+ 			for (int d = 0; d < NDIRS; d++) {
+ 				ARegion *newregion = neighbors[d];
+@@ -2142,7 +2142,7 @@
+ 
+ int ARegion::MoveCost(int movetype, ARegion *fromRegion, int dir)
+ {
+-	int cost = -1;
++	int cost = 1;
+ 	if(Globals->WEATHER_EXISTS) {
+ 		cost = 2;
+ 		if (weather == W_BLIZZARD) return 10;
+Index: battle.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/battle.cpp,v
+retrieving revision 1.24
+diff -u -r1.24 battle.cpp
+--- battle.cpp	15 Jun 2002 05:04:48 -0000	1.24
++++ battle.cpp	3 Oct 2002 19:32:03 -0000
+@@ -231,6 +231,7 @@
+                   ARegionList *pRegs )
+ {
+     Army * armies[2];
++    AString temp;
+     assassination = ASS_NONE;
+     attacker = att->faction;
+ 
+@@ -263,7 +264,6 @@
+         ItemList *spoils = new ItemList;
+         armies[0]->Lose(this, spoils);
+         GetSpoils(atts, spoils, ass);
+-        AString temp;
+         if (spoils->Num()) {
+             temp = AString("Spoils: ") + spoils->Report(2,0,1) + ".";
+         } else {
+@@ -298,7 +298,6 @@
+         ItemList *spoils = new ItemList;
+         armies[1]->Lose(this, spoils);
+         GetSpoils(defs, spoils, ass);
+-        AString temp;
+         if (spoils->Num()) {
+             temp = AString("Spoils: ") + spoils->Report(2,0,1) + ".";
+         } else {
+@@ -319,6 +318,9 @@
+     AddLine("Total Casualties:");
+     armies[0]->Tie(this);
+     armies[1]->Tie(this);
++    temp = "Spoils: none.";
++    AddLine("");
++    AddLine(temp);
+     AddLine("");
+     delete armies[0];
+     delete armies[1];
+Index: unit.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/unit.cpp,v
+retrieving revision 1.53
+diff -u -r1.53 unit.cpp
+--- unit.cpp	16 Jul 2002 23:28:41 -0000	1.53
++++ unit.cpp	3 Oct 2002 19:41:07 -0000
+@@ -1904,7 +1904,7 @@
+ 		}
+ 	}
+ 	for(i = 0; i < NSKILLS; i++) {
+-		if(SkillDefs[i].flags & SkillType::DISABLED) continue;
++		if (!can_forget[i]) continue;
+ 		Skill *si = GetSkillObject(i);
+ 		for(int j=0; j < NSKILLS; j++) {
+ 			if(SkillDefs[j].flags & SkillType::DISABLED) continue;

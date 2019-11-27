@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<atlantisReport version="1">
+  <game version="5.0.0 (beta)" />
+  <rules set="Standard Atlantis" version="5.0.0 (beta)" />
+  <date month="May" year="1" />
+  <battles>
+    <battle>
+      <attack target="36" x="23" y="35" z="" name="Mongris"
+        terrain="plain" />
+      <attackers>
+      <unit id="145" name="Unit (145)" behind="1"><item id="NOMA"
+        count="1" /></unit>
+      </attackers>
+      <defenders>
+      <unit id="36" name="City Guard (36)"><item id="LEAD" count="120"
+        /><item id="SWOR" count="120" /> <combat level="3" /></unit>
+      </defenders>
+      <round num="1">
+      <loss id="145" num="1" />
+      <loss id="36" num="0" />
+      </round>
+      <victor who="defender" />
+      <casualties>
+      <loss id="145" count="1" />
+      <damage id="145" />
+      <loss id="36" count="0" />
+      </casualties>
+    </battle>
+  </battles>
+  <events>
+    <comments>Unit (127): Claims 20 silver for maintenance.</comments>
+  </events>
+  <map>
+    <region x="23" y="35" z="" name="Mongris" terrain="plain"
+      townType="city" townName="Hootauburg">
+      <pop count="3464" id="NOMA" name="nomads" />
+      <wealth amount="31176" />
+      <weather curr="winter" next="winter" />
+      <wages curr="19" max="13163" />
+      <wanted>
+        <market id="GRAI" count="188" price="23" />
+        <market id="LIVE" count="162" price="23" />
+        <market id="FISH" count="160" price="18" />
+        <market id="SWOR" count="39" price="110" />
+        <market id="XBOW" count="36" price="104" />
+        <market id="PARM" count="46" price="357" />
+        <market id="TARO" count="35" price="141" />
+        <market id="COTT" count="39" price="145" />
+      </wanted>
+      <sell>
+        <market id="HORS" count="32" price="45" />
+        <market id="CASH" count="26" price="88" />
+        <market id="WOOL" count="38" price="69" />
+        <market id="NOMA" count="692" price="76" />
+        <market id="LEAD" count="138" price="152" />
+      </sell>
+      <products>
+        <product id="GRAI" count="59" />
+        <product id="HORS" count="36" />
+        <product id="ENTE" count="1558" />
+      </products>
+      <exits>
+        <exit dir="North" x="23" y="33" z="" name="Mongris"
+          terrain="plain" />
+        <exit dir="Northeast" x="24" y="34" z="" name="Atlantis Ocean"
+          terrain="ocean" />
+        <exit dir="Southeast" x="24" y="36" z="" name="Atlantis Ocean"
+          terrain="ocean" />
+        <exit dir="South" x="23" y="37" z="" name="Atlantis Ocean"
+          terrain="ocean" />
+        <exit dir="Southwest" x="22" y="36" z="" name="Atlantis Ocean"
+          terrain="ocean" />
+        <exit dir="Northwest" <region x="22" y="34" z=""
+          name="Mongris" terrain="plain" townType="city"
+          townName="Forbrin-dum"> />
+      </exits>
+      <object id="0">
+        <unit id="36" name="City Guard (36)" guard="1" factionID="?">
+          <item id="LEAD" count="120" /> <item id="SWOR" count="120"
+            /> 
+        </unit>
+        <unit id="127" name="Unit (127)" factionID="3" avoid="1"
+          behind="1" revealFaction="1" noaid="1">
+          <item id="LEAD" count="1" /> 
+          <capacity weight="10" walk="15" ride="0" fly="0" />
+        </unit>
+      </object>
+    </region>
+  </map>
+  <faction id="3" name="Mighty Ducks! (3)" >
+    <war points="1" regions="0" max="10" />
+    <trade points="1" regions="0" max="10" />
+    <magic points="1" mages="0" maxMages="1" apprentices="0"
+      maxApprentices="2" />
+    <times receiving="1" />
+    <password exists="0" />
+    <inactive turns="4" />
+    <unclaimed amount="4884" />
+    <attitude faction="DEFAULT" type="Neutral" />
+  </faction>
+</atlantisReport>
+
+
+<!-- neodl3.grp.bf1.yahoo.com Wed Nov 27 12:31:08 UTC 2019 -->

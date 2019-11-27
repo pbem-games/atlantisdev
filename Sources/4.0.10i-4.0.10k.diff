@@ -1,0 +1,384 @@
+Only in patches_410/atlantis: .project
+diff -ur release_410/atlantis/CHANGELOG patches_410/atlantis/CHANGELOG
+--- release_410/atlantis/CHANGELOG	Wed Jan 29 07:23:36 2003
++++ patches_410/atlantis/CHANGELOG	Tue May 27 00:44:18 2003
+@@ -651,3 +651,11 @@
+    -- Fixed bug in @ENDTURN.
+    -- Fixed bug with skill-based maintanence costs.
+    -- Cleaned up includes to compile without warnings under gcc 3.2
++   
++   -- Fixed a bug with the sail-through code.
++   -- Fixed bug with simultaneous BUILD and DESTROY orders.
++   -- Modified TOWN_SPREAD and TOWN_PROBABILITY code to work as they should.
++   -- Fixed bug where wages were set up rigidly no matter what value was set
++      for MAINTENANCE_COST.
++   -- Added a World Creation Guide to the GAMEMASTER file that covers the
++      version 4.0.10 options.
+Only in patches_410/atlantis: CVS
+diff -ur release_410/atlantis/GAMEMASTER patches_410/atlantis/GAMEMASTER
+--- release_410/atlantis/GAMEMASTER	Wed Oct  3 18:49:51 2001
++++ patches_410/atlantis/GAMEMASTER	Tue May 27 00:33:39 2003
+@@ -186,3 +186,192 @@
+    this file as the new game database file, move the file to game.in,
+    replacing the old game.in file.
+      _________________________________________________________________
++
++
++World Creation
++
++   The following is a description of the options involved in Atlantis world
++   creation. None of the information here is relevant if you merely want to
++   run a standard game.
++
++   All of the following assumes that you have access to the GM report in order
++   to view the game map after creation - at least while you're experimenting.
++   You will have to make sure the gamedef GM_REPORT is set to 1. The GM_REPORT
++   will be created as 'report.1' in the atlantis directory - it's an omniscient
++   turn report.
++
++
++Basics: world size, land mass and levels
++
++   The most important consideration for any game is world size as this will
++   determine the number of players that can comfortably join a game and the
++   amount of competition. You are prompted for world width and height in
++   the creation process by the game.
++
++   # of surface hexes = width * (height / 2)
++
++   The ocean percent value is a rough estimate of how much of these will be
++   land mass:
++
++   # of surface land hexes = width * (height / 2) * <ocean percent> / 100
++   
++   (see Land Mass Distribution below for a description how to change ocean
++   percent.)
++
++   For instance with a default <ocean percent> of 60, a 128 x 128 map will have
++   8192 surface hexes and about 4915 land hexes. In standard Atlantis, a faction
++   can make use of 100 maximum. Reduce that somewhat for mixed factions, magic
++   factions and a little bit of friction and you might want to aim for 50 land
++   hexes per player. That means that a game this size would allow up to 100
++   players to expand and play comfortably (note: this is just a very rough
++   sketch and things can vary considerably on the play style chosen by your
++   players and other rules you may or may not have enforced in your game).
++
++   Underworld levels, while not being available to players immediately at
++   start, also have an effect on the total number of regions available for
++   play. They are set by the gamedefs UNDERWORLD_LEVELS (the number of
++   underworld levels beneath the surface), UNDERDEEP_LEVELS (the number of
++   underdeep levels) and ABYSS_LEVEL (this is just an on/off switch).
++
++   The underworld levels are only 1/2 the size in both coordinates of the
++   surface level (except the top one if there's more than one), underdeep
++   levels are 1/4th the size in both coordinates (except the topmost if
++   there's more than one - that will be 1/2 size), and the Abyss is just
++   a tiny area with a Black Keep for the Wyreth victory conditions.
++
++
++Land Mass Distribution
++
++   The distribution of land mass determines whether players will be able to
++   expand on a large continental mass and how important ships and sailing
++   will be in the game.
++
++   <CONTINENT SIZE> and <OCEAN PERCENT>:
++   These aren't gamedefs - they are hard-coded into 'world.cpp' in the
++   gameset directory. In 'world.cpp' you'll find the 'Game::CreateWorld()'
++   function with the following line:
++   
++      regions.CreateSurfaceLevel( 1, xx, yy, 60, 16, 0 );
++                                             ^    ^ 
++                                <ocean percent>  <continent size>
++                                
++   As you can see, the hard-coded defaults are 60 for <ocean percent> and
++   16 for <continent size>, but you can edit them here.  
++   
++   <continent size> will control how much land is allocated to
++   a continent at a time. For smaller worlds this value should be
++   decreased or you'll find that all your land mass is allocated to one
++   or two continents only. For huge worlds it might be increased
++   correspondingly if you want to have continents fit for your world size.
++
++   ARCHIPELAGO: this gamedef controls how often land is created not as a
++   continent but as a small island chain. The size of the islands can range
++   from very small to a value that's linked with continent size but even
++   the bigger islands will tend to be much smaller than your continents.
++   So while an archipelago world might be created by setting <continent
++   size> to a really low value, setting ARCHIPELAGO will allow your world
++   to have both solid continents and islands at the same time. The value of
++   ARCHIPELAGO is treated as a percent chance that any attempt at creating
++   new land mass will end up forming an archipelago. Note that because
++   archipelagos are much smaller than continents, the overall land mass
++   allocated to them will be smaller than this gamedef value.
++   
++   Setting ARCHIPELAGO activates the code for filling in inland seas and
++   severing land bridges (see 'Map Refinements' below) 
++
++Terrain Type Allocation
++
++   Terrain distribution is probably more a matter of style and flavor than
++   the aspects discussed in previous chapters. It can become a matter of
++   resource availability if not much land is available either due to
++   world or continent size.
++
++   Terrain types are allocated in 'world.cpp' in the function
++   GetRegType(ARegion *pReg). Depending on the region's level and distance
++   to the equator a different table of terrain type choices is used. If you
++   want to have more or less of a specific terrain or add in new types you'll
++   need to edit these tables. For most games using the standard terrain set
++   you won't need to look into this. (The exception to this are lakes which
++   are currently handled by their own gamedef - see below)
++
++   LAKES_EXIST: lakes are a terrain type that is impassable by foot but can
++   be sailed on or flown over just like ocean. They are meant to introduce
++   added variety and some hindrance to land movement on the continents
++   where inland sea masses have been erased. They can be set so that all
++   adjacent hexes act as coastal terrain (having similar races and possibly
++   resources) by using the LAKESIDE_IS_COASTAL gamedef. Lakes can also
++   provide some economic benefit to adjacent land hexes, this is handled by
++   the LAKE_WAGE_EFFECT setting. Here we are concerned with lake placement.
++
++   The LAKES_EXIST gamedef sets the chance that any given land hex is
++   allocated as lake and not as any other type of terrain. The basic chance
++   for this to happen depends on whether this hex has previously been an
++   ocean hex that has been filled in via removal of inland seas (see below).
++   In case it has, the percent chance is equal to the LAKES_EXIST setting.
++   In all other cases, the chance is LAKES_EXIST / 10 + 1 %.
++   This creates areas with a higher abundance of lakes, usually on
++   main continents and not islands.
++   
++   Setting LAKES_EXIST activates the code for filling in inland seas and
++   severing land bridges (see 'Map Refinements' below).
++
++   ODD_TERRAIN: this gamedef adds a sprinkle of chaos to your maps by
++   inserting single hexes of different terrain. The terrain type is still
++   allocated in the normal way - it might just be different from the patch
++   of terrain around it.
++   The value of ODD_TERRAIN is the chance that this happens, per hex, in
++   0.1%. A setting of '4' will therefore create interspersed terrain in
++   0.4% of all hexes. Note that the terrain type can of course end up to
++   be the same as that of the surrounding hexes.
++   
++Map Refinements
++
++   Standard Atlantis maps tend to show either a web of land
++   hexes against a backdrop of water or continents with a shotgun
++   pattern of ocean sprinkled in between. The ARCHIPELAGO and LAKES_EXIST
++   gamedefs both activate functions that erase ocean hexes caught in a 
++   continental land mass without a connection to the main ocean and cut
++   some of the land bridges between continents that are only 1 hex wide.
++   
++   You will find that your continents will tend to be larger when these
++   options are switched on - setting a lower <continent size> will
++   reduce this effect.
++
++Town Setup
++
++   Towns are always a focus of economic activities in Atlantis and are
++   strategically important locations. The number and placement of towns
++   can therefore have a strong effect on the competition and feel of a
++   game.
++   
++   TOWN_PROBABILITY: this is the chance for creating towns compared to
++   standard Atlantis. '100' is the default setting. A value of '80'
++   means that only 80% of the usual number of towns will be created.
++   
++   TOWN_SPREAD: normally towns are much more likely in plains than anywhere
++   else. This might or might not suit your game - why should your
++   dwarves have less towns just because they live in the mountains?
++   At the default value of '0', the chance for a town is directly
++   proportional to the terrain's economy value. At a TOWN_SPREAD setting
++   of '100' at the other end of the scale the chance is exactly the same
++   regardless of terrain. The effect is that other terrain types - which
++   are already economically less interesting than plains - become much
++   more viable as a base for factions.
++   
++   TOWNS_NOT_ADJACENT: ever seen too many towns in one spot, especially
++   on those already rich plains? This gamedef is a possible check against
++   town clustering. TOWNS_NOT_ADJACENT is the percent chance that a
++   town will not be created if another one has already been created next
++   to it. A setting of '50' for instance will decrease the likelihood by
++   50%, and a setting of '100' and above will prevent towns from being
++   adjacent. Note that starting cities are an exception to this since
++   they are created by a different part of the code and are necessary
++   for the game.
++   
++   LESS_ARCTIC_TOWNS: use this gamedef to reduce chances of towns near the
++   polar caps (within 9 hexes of the map border). The town chance is
++   reduced by approximately the LESS_ARCTIC_TOWNS setting x 3% times
++   9 minus the distance from the polar cap. 
++   Towns that are created will also be considerably smaller than usual.
++     _________________________________________________________________
++
+diff -ur release_410/atlantis/aregion.cpp patches_410/atlantis/aregion.cpp
+--- release_410/atlantis/aregion.cpp	Tue Jan 21 02:38:26 2003
++++ patches_410/atlantis/aregion.cpp	Tue May 27 00:42:59 2003
+@@ -237,6 +237,10 @@
+ 
+ 	int pop = typer->pop;
+ 	int mw = typer->wages;
++	
++	// Fix wages for changed maintenance cost
++	mw += Globals->MAINTENANCE_COST - 10;
++	if (mw < 0) mw = 0;
+ 
+ 	if (pop == 0) {
+ 		population = 0;
+@@ -295,10 +299,12 @@
+ 				townch = townch + 25 * (9 - dsouth) *
+ 					(9 - dsouth) * Globals->LESS_ARCTIC_TOWNS;
+ 		}
+-		int townprob = TerrainDefs[type].economy * 4 /
+-			(Globals->TOWN_SPREAD+1) + 50 * Globals->TOWN_SPREAD;
+-		if (adjacent == 0)
+-			if (getrandom(townch) < townprob) AddTown();
++		int spread = Globals->TOWN_SPREAD;
++		if(spread > 100) spread = 100;
++		int townprob = (TerrainDefs[type].economy * 4 * (100 - spread) +
++			100 * spread) / 100;
++		if (adjacent > 0) townprob = townprob * (100 - Globals->TOWNS_NOT_ADJACENT) / 100;
++		if (getrandom(townch) < townprob) AddTown();
+ 	}
+ 
+ 	Production * p = new Production;
+@@ -2183,7 +2189,7 @@
+ 	return seacount;
+ }
+ 
+-int ARegion::MoveCost(int movetype, ARegion *fromRegion, int dir)
++int ARegion::MoveCost(int movetype, ARegion *fromRegion, int dir, AString *road)
+ {
+ 	int cost = 1;
+ 	if(Globals->WEATHER_EXISTS) {
+@@ -2193,8 +2199,11 @@
+ 	}
+ 	if (movetype == M_WALK || movetype == M_RIDE) {
+ 		cost = (TerrainDefs[type].movepoints * cost);
+-		if((cost>1) && fromRegion->HasExitRoad(dir) && HasConnectingRoad(dir))
++		if(fromRegion->HasExitRoad(dir) && HasConnectingRoad(dir)) {
+ 			cost -= cost/2;
++			if (road)
++				*road = " on a road";
++		}
+ 	}
+ 	if(cost < 1) cost = 1;
+ 	return cost;
+diff -ur release_410/atlantis/aregion.h patches_410/atlantis/aregion.h
+--- release_410/atlantis/aregion.h	Sat Jun 29 03:38:44 2002
++++ patches_410/atlantis/aregion.h	Mon Mar 24 08:59:31 2003
+@@ -198,7 +198,7 @@
+ 		Object * GetObject(int);
+ 		Object * GetDummy();
+ 
+-		int MoveCost(int, ARegion *, int);
++		int MoveCost(int, ARegion *, int, AString *);
+ 		Unit * Forbidden(Unit *); /* Returns unit that is forbidding */
+ 		Unit * ForbiddenByAlly(Unit *); /* Returns unit that is forbidding */
+ 		int CanTax(Unit *);
+Only in patches_410/atlantis/ceran: CVS
+Only in patches_410/atlantis/ceran/html: CVS
+Only in patches_410/atlantis/conquest: CVS
+Only in patches_410/atlantis/conquest/html: CVS
+diff -ur release_410/atlantis/monthorders.cpp patches_410/atlantis/monthorders.cpp
+--- release_410/atlantis/monthorders.cpp	Sat Jan 18 21:18:50 2003
++++ patches_410/atlantis/monthorders.cpp	Tue May 27 00:34:59 2003
+@@ -176,6 +176,7 @@
+ 				// Check to see if sailing THROUGH land!
+ 				// always allow retracing steps
+ 				if (Globals->PREVENT_SAIL_THROUGH &&
++						(TerrainDefs[reg->type].similar_type != R_OCEAN) &&
+ 						(ship->type != O_BALLOON) &&
+ 						(ship->prevdir != -1) &&
+ 						(ship->prevdir != reg->GetRealDirComp(i))) {
+@@ -190,13 +191,16 @@
+ 					}
+ 					for (int k = d1+1; k < d2; k++) {
+ 						ARegion *land1 = reg->neighbors[k];
+-						int l = k + 3;
+-						if (l >= NDIRS) l = l - NDIRS;
+-						ARegion *land2 = reg->neighbors[l];
+ 						if ((!land1) ||
+ 								(TerrainDefs[land1->type].similar_type !=
+ 								 R_OCEAN))
+ 							blocked1 = 1;
++					}
++					int sides = NDIRS - 2 - (d2 - d1 - 1);
++					for (int l = d2+1; l <= d2 + sides; l++) {
++						int dl = l;
++						if (dl >= NDIRS) dl -= NDIRS;
++						ARegion *land2 = reg->neighbors[dl];
+ 						if ((!land2) ||
+ 								(TerrainDefs[land2->type].similar_type !=
+ 								 R_OCEAN))
+@@ -498,6 +502,8 @@
+ 	}
+ 
+ 	/* Perform the build */
++	
++	u->MoveUnit(obj);
+ 
+ 	if (it == I_WOOD_OR_STONE) {
+ 		if (num > u->items.GetNum(I_STONE)) {
+@@ -1103,6 +1109,7 @@
+ 	Location * loc = new Location;
+ 	MoveOrder * o = (MoveOrder *) unit->monthorders;
+ 	int movetype = unit->MoveType();
++	AString road;
+ 
+ 	if (unit->guard == GUARD_GUARD) unit->guard = GUARD_NONE;
+ 	if (o->advancing) unit->guard = GUARD_ADVANCE;
+@@ -1141,7 +1148,8 @@
+ 			goto done_moving;
+ 		}
+ 
+-		int cost = newreg->MoveCost(movetype, region, i);
++		road = "";
++		int cost = newreg->MoveCost(movetype, region, i, &road);
+ 
+ 		if (region->type != R_NEXUS &&
+ 				unit->CalcMovePoints() - unit->movepoints < cost) {
+@@ -1216,12 +1224,12 @@
+ 		AString temp;
+ 		switch (movetype) {
+ 		case M_WALK:
+-			temp = "Walks ";
++			temp = AString("Walks ") + road;
+ 			if(TerrainDefs[newreg->type].similar_type == R_OCEAN)
+ 				temp = "Swims ";
+ 			break;
+ 		case M_RIDE:
+-			temp = "Rides ";
++			temp = AString("Rides ") + road;
+ 			break;
+ 		case M_FLY:
+ 			temp = "Flies ";
+diff -ur release_410/atlantis/parseorders.cpp patches_410/atlantis/parseorders.cpp
+--- release_410/atlantis/parseorders.cpp	Mon Jan 27 03:26:28 2003
++++ patches_410/atlantis/parseorders.cpp	Tue May 27 00:34:31 2003
+@@ -1477,7 +1477,6 @@
+ 			Object * obj = new Object(reg);
+ 			obj->type = ot;
+ 			obj->incomplete = ObjectDefs[obj->type].cost;
+-			unit->MoveUnit(obj);
+ 			unit->build = obj;
+ 			unit->object->region->objects.Add(obj);
+ 		}
+Only in patches_410/atlantis/realms: CVS
+Only in patches_410/atlantis/realms/html: CVS
+Only in patches_410/atlantis/standard: CVS
+Only in patches_410/atlantis/standard/html: CVS
+diff -ur release_410/atlantis/unit.cpp patches_410/atlantis/unit.cpp
+--- release_410/atlantis/unit.cpp	Mon Jan 27 03:28:56 2003
++++ patches_410/atlantis/unit.cpp	Mon Mar 24 08:59:31 2003
+@@ -1421,7 +1421,7 @@
+ 			(!CanSwim() || GetFlag(FLAG_NOCROSS_WATER)))
+ 		return 0;
+ 	int mp = CalcMovePoints() - movepoints;
+-	if (mp < (r2->MoveCost(mt, r1, dir))) return 0;
++	if (mp < (r2->MoveCost(mt, r1, dir, 0))) return 0;
+ 	return 1;
+ }
+ 
+Only in patches_410/atlantis/wyreth: CVS
+Only in patches_410/atlantis/wyreth/html: CVS

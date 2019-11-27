@@ -1,0 +1,56 @@
+Perphidea How TO Document
+
+--------------------------------------------------------------------------
+This document describes how to run an Atlantis game using Windows 98/XP
+and Visual Basic 6.0
+
+--------------------------------------------------------------------------
+Install Visual Studio 6.0 on windows.  Actually all you need is Visual
+C++ 6.0 and Visual Basic 6.0, and a couple of dos batch files.  I got
+my Visual Studio from eBay for $220.00 several years ago.
+
+--------------------------------------------------------------------------
+Get a copy of Atlantis source and build it using Visual C++ 6.0.  One
+problem here is in the automatic creation of the code generated rules.
+I ended up building the game engine on a linux machine to get the rules.
+The problem is with Visual C++ 6.0 not having enough room for all the
+nested if statements.  I simply removed the code to generate the rules
+when building under Visual C++.
+
+--------------------------------------------------------------------------
+Get copies of ANPOP/ANSMTP.  These are commercial Activex components that
+work quite well in retrieving/sending email to your ISP.  I think they
+are about $70.00 apiece.
+
+--------------------------------------------------------------------------
+Download a copy of the Visual Basic project Perphidea, or write your own
+script to handle the email coming to your game engine.
+
+--------------------------------------------------------------------------
+Prepare an Atlantis game by running the game engine with the 'new'
+switch set.
+
+--------------------------------------------------------------------------
+Use a couple of dos batch files similar to the following to run the
+game engine.
+
+This first batch file will run an orders check.
+
+chdir c:\Atlantis\Perphidea
+del c:\Atlantis\Perphidea\OrdCheck.%1
+c:\Atlantis\Perphidea\Perphidea check Orders.%1 OrdCheck.%1
+
+This batch file will run the turn as scheduled in the Visual Basic project.
+
+chdir c:\Atlantis\Perphidea
+c:\Atlantis\Perphidea\Perphidea run
+move c:\Atlantis\Perphidea\players.out c:\Atlantis\Perphidea\players.in
+move c:\Atlantis\Perphidea\game.out c:\Atlantis\Perphidea\game.in
+
+--------------------------------------------------------------------------
+And then whatever else it takes, that I have no idea what I did :-)
+
+I may be reached at radk@sbcglobal.net
+
+Enjoy,
+Rad

@@ -1,0 +1,66 @@
+Index: game.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/game.cpp,v
+retrieving revision 1.45
+diff -u -r1.45 game.cpp
+--- game.cpp	2001/11/26 23:24:46	1.45
++++ game.cpp	2001/12/22 16:47:08
+@@ -439,6 +439,7 @@
+ 	}
+ 
+ 	FixBoatNums();
++	FixGateNums();
+ 	SetupUnitNums();
+ 
+ 	f.Close();
+@@ -1609,6 +1610,34 @@
+ 		}
+ 	}
+ 	unitseq = max+1;
++}
++
++void Game::FixGateNums()
++{
++	for(int i=1; i <= regions.numberofgates; i++) {
++		ARegion *tar = regions.FindGate(i);
++		int done = 0;
++		while(!done) {
++			// We have a missing gate, add it
++
++			// Get the z coord, exclude the nexus (and the abyss as well)
++			int z = getrandom(regions.numLevels);
++			ARegionArray *arr = regions.GetRegionArray(z);
++			if(arr->levelType == ARegionArray::LEVEL_NEXUS) continue;
++
++			// Get a random hex within that level
++			int x = getrandom(arr->x);
++			int y = getrandom(arr->y);
++			tar = arr->GetRegion(x, y);
++			if(!tar) continue;
++
++			// Make sure the hex can have a gate and doesn't already
++			if((TerrainDefs[tar->type].similar_type==R_OCEAN) || tar->gate)
++				continue;
++			tar->gate = i;
++			done = 1;
++		}
++	}
+ }
+ 
+ void Game::FixBoatNums()
+Index: game.h
+===================================================================
+RCS file: /home/cvs/atlantis/game.h,v
+retrieving revision 1.33
+diff -u -r1.33 game.h
+--- game.h	2001/11/24 21:54:08	1.33
++++ game.h	2001/12/22 16:24:02
+@@ -107,6 +107,8 @@
+ 
+ 	// Fix broken boat numbers
+ 	void FixBoatNums();
++	// Fix broken/missing gates
++	void FixGateNums();
+ 
+     //
+     // Get a unit by its number.

@@ -1,0 +1,1276 @@
+diff -u -r \atlantis-4.0.10c.tar/aregion.cpp \aremas-210b/aregion.cpp
+--- \atlantis-4.0.10c.tar/aregion.cpp	Wed Sep 18 20:20:04 2002
++++ \aremas-210b/aregion.cpp	Thu Oct 17 16:32:22 2002
+@@ -134,6 +134,7 @@
+ 	town = 0;
+ 	clearskies = 0;
+ 	earthlore = 0;
++	wasted = 0; 
+ 	for (int i=0; i<NDIRS; i++)
+ 		neighbors[i] = 0;
+ }
+@@ -218,6 +219,15 @@
+ 			if (raise) retval++;
+ 		}
+ 	}
++	
++	// Wonder building effect
++	if (HasWonder() ) retval+= 2;
++	
++	// Wasted money effect
++	// intval = 2 * (region wasted amount) / (Tax without wasted effect)
++	int intval = 2 * wasted / (Population() * (retval - Globals->MAINTENANCE_COST) );
++	if (intval) retval++;
++	
+ 	return retval;
+ }
+ 
+@@ -507,10 +517,17 @@
+ 			}
+ 		} else if(ItemDefs[ i ].type & IT_ADVANCED) {
+ 			j = getrandom(4);
++			// With Special Elixir Market, Cities have always Elixir Market
++			if (i==I_ELIXIR && Globals->SPECIAL_ELIXIR_MARKET) {
++				j = 2;
++			}
+ 			if (j==2) {
+ 				int amt = Globals->CITY_MARKET_ADVANCED_AMT;
+ 				int price;
+-
++				// With Special Elixir Market, Elixir Market has special amount
++				if (i==I_ELIXIR && Globals->SPECIAL_ELIXIR_MARKET) {
++					amt = 5;
++				}
+ 				if(Globals->RANDOM_ECONOMY) {
+ 					amt += getrandom(amt);
+ 					price = (ItemDefs[i].baseprice * (100 + getrandom(50))) /
+@@ -675,6 +692,7 @@
+ 
+ 			if (dist < 9)
+ 				popch = popch - (9 - dist) * ((9 - dist) + 10) * 15;
++
+ 		}
+ 		town->pop = 500+getrandom(popch);
+ 	} else {
+@@ -812,6 +830,42 @@
+ 	}
+ 
+ 	//
++	// Check if we were a starting city and eliminate men in excess 
++	//
++	if(IsStartingCity() && Globals->SAFE_START_CITIES && Globals->STARTING_CITIES_HAVE_LIMITATION) {
++		
++		AList * pfacs;
++		pfacs = PresentFactions();
++
++		forlist( pfacs ) {
++			
++			int totalmen = 0 ;
++			int maxmen = 400 + getrandom(200) ;
++			Faction * fac = ((FactionPtr *) elem)->ptr;
++			//Faction * fac = (Faction) elem;
++			forlist(&objects) {
++				Object *o = (Object *) elem;
++		   		forlist(&o->units) {
++		        	Unit *u = (Unit *) elem;
++		        	if (u->faction->num == fac->num) {
++			        	totalmen += u->GetMen();
++			        	if ( (totalmen > maxmen) && (u->GetMen() > 9) ) {
++		            		forlist(&u->items) {
++								Item * i = (Item *) elem;
++								if (ItemDefs[i->type].type & IT_MAN) {
++									int lostmen = i->num / 10 ;
++									u->SetMen(i->type, i->num - lostmen);
++									u->Event( AString("Has lost ") + lostmen + " men mysteriously.");
++								}
++							}
++						}
++			        }
++			    }
++			}
++		}			
++	}
++
++	//
+ 	// Don't do pop stuff for AC Exit.
+ 	//
+ 	if (town->pop != 5000) {
+@@ -926,7 +980,7 @@
+ 		p = products.GetProd(I_SILVER,S_ENTERTAINMENT);
+ 		p->baseamount = money / Globals->ENTERTAIN_FRACTION;
+ 
+-		markets.PostTurn(Population(),Wages());
++		markets.PostTurn(Population(),Wages(),wasted);
+ 	}
+ 
+ 	UpdateProducts();
+@@ -936,6 +990,7 @@
+ 	//
+ 	earthlore = 0;
+ 	clearskies = 0;
++	wasted = 0 ;
+ 
+ 	forlist(&objects) {
+ 		Object *o = (Object *) elem;
+@@ -1193,6 +1248,15 @@
+ 	forlist (&objects) {
+ 		Object * o = (Object *) elem;
+ 		if(o->IsRoad() && o->incomplete < 1) return 1;
++	}
++	return 0;
++}
++
++int ARegion::HasWonder()
++{
++	forlist (&objects) {
++		Object * o = (Object *) elem;
++		if(o->IsWonder() && o->incomplete < 1) return 1;
+ 	}
+ 	return 0;
+ }
+diff -u -r \atlantis-4.0.10c.tar/aregion.h \aremas-210b/aregion.h
+--- \atlantis-4.0.10c.tar/aregion.h	Sat Jun 29 03:38:44 2002
++++ \aremas-210b/aregion.h	Thu Aug 22 18:50:28 2002
+@@ -223,6 +223,7 @@
+ 
+ 		// AS
+ 		int HasRoad();
++		int HasWonder();
+ 		int HasExitRoad(int realDirection);
+ 		int CountConnectingRoads();
+ 		int HasConnectingRoad(int realDirection);
+@@ -263,6 +264,7 @@
+ 		/* Potential bonuses to economy */
+ 		int clearskies;
+ 		int earthlore;
++		int wasted;
+ 
+ 		ARegion * neighbors[NDIRS];
+ 		AList objects;
+Only in \aremas-210b: aremas
+diff -u -r \atlantis-4.0.10c.tar/army.cpp \aremas-210b/army.cpp
+--- \atlantis-4.0.10c.tar/army.cpp	Wed Jul 17 01:28:42 2002
++++ \aremas-210b/army.cpp	Wed Sep 11 03:07:26 2002
+@@ -162,7 +162,7 @@
+ 	int canFly = (terrainflags & TerrainType::FLYINGMOUNTS);
+ 	int canRide = (terrainflags & TerrainType::RIDINGMOUNTS);
+ 	int ridingBonus = 0;
+-	if(canFly || canRide) {
++	if( (canFly || canRide) && !(ass && (Globals->NEW_ASSASSINATION_RULES > 0)) ) {
+ 		//
+ 		// Mounts of some type _are_ allowed in this region
+ 		//
+@@ -1029,7 +1029,7 @@
+ 
+ int Army::DoAnAttack(int special, int numAttacks, int attackType,
+ 		int attackLevel, int flags, int weaponClass, int effect,
+-		int mountBonus)
++		int mountBonus, int ass)
+ {
+ 	/* 1. Check against Global effects (not sure how yet) */
+ 	/* 2. Attack shield */
+@@ -1115,8 +1115,10 @@
+ 		/* 5. Attack soldier */
+ 		if (attackType != NUM_ATTACK_TYPES) {
+ 			if(!(flags & WeaponType::ALWAYSREADY)) {
+-				if(getrandom(2)) {
+-					continue;
++				if (!(ass && (Globals->NEW_ASSASSINATION_RULES > 0))) {
++					if(getrandom(2)) {
++						continue;
++					}
+ 				}
+ 			}
+ 
+diff -u -r \atlantis-4.0.10c.tar/army.h \aremas-210b/army.h
+--- \atlantis-4.0.10c.tar/army.h	Sat May 11 19:00:48 2002
++++ \aremas-210b/army.h	Fri Aug 23 15:48:06 2002
+@@ -125,7 +125,7 @@
+ 		int RemoveEffects(int num, int effect);
+ 		int DoAnAttack( int special, int numAttacks, int attackType,
+ 				int attackLevel, int flags, int weaponClass, int effect,
+-				int mountBonus);
++				int mountBonus, int ass = 0);
+ 		void Kill(int);
+ 		void Reset();
+ 
+diff -u -r \atlantis-4.0.10c.tar/battle.cpp \aremas-210b/battle.cpp
+--- \atlantis-4.0.10c.tar/battle.cpp	Thu Oct 03 21:32:04 2002
++++ \aremas-210b/battle.cpp	Thu Oct 17 14:42:48 2002
+@@ -78,7 +78,7 @@
+ void Battle::DoAttack(int round, Soldier *a, Army *attackers, Army *def,
+ 		int behind, int ass)
+ {
+-	DoSpecialAttack(round, a, attackers, def, behind);
++	DoSpecialAttack(round, a, attackers, def, behind, ass);
+ 	if (!def->NumAlive()) return;
+ 
+ 	if (!behind && (a->riding != -1)) {
+@@ -95,7 +95,7 @@
+ 				num  = def->DoAnAttack(pMt->mountSpecial, realtimes,
+ 						spd->damage[i].type, pMt->specialLev,
+ 						spd->damage[i].flags, spd->damage[i].dclass,
+-						spd->damage[i].effect, 0);
++						spd->damage[i].effect, 0, ass);
+ 				if(num != -1) {
+ 					if(tot == -1) tot = num;
+ 					else tot += num;
+@@ -140,7 +140,7 @@
+ 			attackClass = pWep->weapClass;
+ 		}
+ 		def->DoAnAttack( 0, 1, attackType, a->askill, flags, attackClass,
+-				0, mountBonus);
++				0, mountBonus, ass);
+ 		if (!def->NumAlive()) break;
+ 	}
+ 
+diff -u -r \atlantis-4.0.10c.tar/battle.h \aremas-210b/battle.h
+--- \atlantis-4.0.10c.tar/battle.h	Sat Dec 22 01:20:52 2001
++++ \aremas-210b/battle.h	Fri Aug 23 15:48:00 2002
+@@ -75,7 +75,7 @@
+ 		//
+ 		void UpdateShields(Army *);
+ 		void DoSpecialAttack( int round, Soldier *a, Army *attackers,
+-				Army *def, int behind );
++				Army *def, int behind, int ass = 0);
+ 
+ 		void WriteSides(ARegion *,Unit *,Unit *,AList *,AList *,int,
+ 				ARegionList *pRegs );
+diff -u -r \atlantis-4.0.10c.tar/ceran/rules.cpp \aremas-210b/ceran/rules.cpp
+--- \atlantis-4.0.10c.tar/ceran/rules.cpp	Thu Jul 11 19:11:56 2002
++++ \aremas-210b/ceran/rules.cpp	Thu Oct 17 16:33:56 2002
+@@ -190,6 +190,21 @@
+ 	10,	// UPKEEP_FOOD_VALUE
+ 	0,	// PREVENT_SAIL_THROUGH
+ 	0,	// ALLOW_TRIVIAL_PORTAGE
++	
++	0,	// ALLOW_WASTE
++	100,	// RATIO_WASTE
++	0,	// FACTION_FEATURE_ON
++	500,	// ARTIST_FAME
++	500, 	// MAGE_FAME
++	50,	// ORC_FAME
++	0,	// SPECIAL_ELIXIR_MARKET
++	0,	// STARTING_CITIES_HAVE_LIMITATION
++	0,	// NEW_ASSASSINATION_RULES
++	1,	// SHIELD_FACTOR
++	2,	// PILLAGERS_FACTOR
++	2,	// PILLAGE_FACTOR
++	0,	// DEADLY_PILLAGE
++	0,	// ALT_REVEAL_FLAG
+ };
+ 
+ GameDefs * Globals = &g;
+diff -u -r \atlantis-4.0.10c.tar/conquest/rules.cpp \aremas-210b/conquest/rules.cpp
+--- \atlantis-4.0.10c.tar/conquest/rules.cpp	Thu Jul 11 19:11:58 2002
++++ \aremas-210b/conquest/rules.cpp	Thu Oct 17 16:34:34 2002
+@@ -189,6 +189,21 @@
+ 	10,	// UPKEEP_FOOD_VALUE
+ 	0,	// PREVENT_SAIL_THROUGH
+ 	0,	// ALLOW_TRIVIAL_PORTAGE
++
++	0,	// ALLOW_WASTE
++	100,	// RATIO_WASTE
++	0,	// FACTION_FEATURE_ON
++	500,	// ARTIST_FAME
++	500, 	// MAGE_FAME
++	50,	// ORC_FAME
++	0,	// SPECIAL_ELIXIR_MARKET
++	0,	// STARTING_CITIES_HAVE_LIMITATION
++	0,	// NEW_ASSASSINATION_RULES
++	1,	// SHIELD_FACTOR
++	2,	// PILLAGERS_FACTOR
++	2,	// PILLAGE_FACTOR
++	0,	// DEADLY_PILLAGE
++	0,	// ALT_REVEAL_FLAG
+ };
+ 
+ GameDefs * Globals = &g;
+diff -u -r \atlantis-4.0.10c.tar/faction.cpp \aremas-210b/faction.cpp
+--- \atlantis-4.0.10c.tar/faction.cpp	Wed May 08 16:20:16 2002
++++ \aremas-210b/faction.cpp	Thu Aug 22 18:43:20 2002
+@@ -55,6 +55,16 @@
+ 
+ char **FactionStrs = fs;
+ 
++char *feats[] = {
++	"Fame",
++	"Power",
++	"Wealth",
++	"Terror",
++	"Arts"
++};
++
++char **FeatureStrs = feats;
++
+ int ParseAttitude(AString *token)
+ {
+ 	for (int i=0; i<NATTITUDES; i++)
+@@ -127,6 +137,9 @@
+ 	pReg = NULL;
+ 	pStartLoc = NULL;
+ 	noStartLeader = 0;
++	for (int j=0; j<NFACFEATURES; j++) {
++		feature[j] = 0;
++	}
+ }
+ 
+ Faction::Faction(int n)
+@@ -149,6 +162,9 @@
+ 	pReg = NULL;
+ 	pStartLoc = NULL;
+ 	noStartLeader = 0;
++	for (int j=0; j<NFACFEATURES; j++) {
++		feature[j] = 0;
++	}
+ }
+ 
+ Faction::~Faction()
+@@ -584,7 +600,11 @@
+ 	file->PutStr( AString( "Password: " ) + *password );
+ 	file->PutStr( AString( "LastOrders: " ) + lastorders );
+ 	file->PutStr( AString( "SendTimes: " ) + times );
+-
++	if (Globals->FACTION_FEATURE_ON == 1) {
++		for (int i=0; i<NFACFEATURES; i++) {
++			file->PutStr( AString( FeatureStrs[i] ) + ": " + feature[i] );
++		}
++	}
+ 	forlist( &extraPlayers ) {
+ 		AString *pStr = (AString *) elem;
+ 		file->PutStr( *pStr );
+diff -u -r \atlantis-4.0.10c.tar/faction.h \aremas-210b/faction.h
+--- \atlantis-4.0.10c.tar/faction.h	Wed May 08 16:20:16 2002
++++ \aremas-210b/faction.h	Fri Aug 30 01:09:06 2002
+@@ -59,6 +59,15 @@
+     NFACTYPES
+ };
+ 
++enum {
++    F_FAME,
++    F_POWER,
++    F_WEALTH,
++    F_TERROR,
++    F_ARTS,
++    NFACFEATURES
++};
++
+ // DK
+ enum {
+     TEMPLATE_OFF,
+@@ -78,6 +87,7 @@
+ 
+ extern char ** AttitudeStrs;
+ extern char ** FactionStrs;
++extern char ** FeatureStrs;
+ 
+ int ParseAttitude(AString *);
+ 
+@@ -159,6 +169,9 @@
+     // FACLIM_FACTION_TYPES
+     //
+     int type[NFACTYPES];
++
++    // The feature is only used if Globals->FACTION_FEATURE_ON == 1
++    int feature[NFACFEATURES];
+ 
+     int lastchange;
+     int lastorders;
+diff -u -r \atlantis-4.0.10c.tar/game.cpp \aremas-210b/game.cpp
+--- \atlantis-4.0.10c.tar/game.cpp	Sat Sep 14 19:46:22 2002
++++ \aremas-210b/game.cpp	Thu Sep 19 01:06:40 2002
+@@ -1031,10 +1031,20 @@
+ 			}
+ 		}
+ 	} else {
+-		pTemp = new AString( *pToken + *pLine );
+-		pFac->extraPlayers.Add( pTemp );
+-		pTemp = 0;
+-	}
++		int misc = 1;
++		for (int i=0; i<NFACFEATURES; i++) {
++			if( (Globals->FACTION_FEATURE_ON == 1) &&  
++				(*pToken == ( AString( FeatureStrs[i] ) + ":" ) ) ) {
++				pFac->feature[i]=0; // Faction features are not cumulative but reset to zero
++				misc = 0;
++			} 
++		}
++		if (misc) {
++			pTemp = new AString( *pToken + *pLine );
++			pFac->extraPlayers.Add( pTemp );
++			pTemp = 0;
++		}
++	} 
+ 
+ 	if(pTemp) delete pTemp;
+ 	return( 1 );
+diff -u -r \atlantis-4.0.10c.tar/game.h \aremas-210b/game.h
+--- \atlantis-4.0.10c.tar/game.h	Mon Jul 01 09:18:14 2002
++++ \aremas-210b/game.h	Thu Oct 17 16:39:14 2002
+@@ -361,6 +361,7 @@
+     void ProcessPasswordOrder(Unit *, AString *, OrdersCheck *pCheck );
+ 	void ProcessExchangeOrder(Unit *, AString *, OrdersCheck *pCheck);
+ 	AString *ProcessTurnOrder(Unit *, Aorders *, OrdersCheck *pCheck, int);
++ 	void ProcessWasteOrder(Unit *,AString *, OrdersCheck *pCheck );
+ 
+ 	void RemoveInactiveFactions();
+ 
+@@ -384,6 +385,10 @@
+ 	void DoExchangeOrders();
+ 	void DoExchangeOrder(ARegion *,Unit *,ExchangeOrder *);
+ 
++	void DoWasteOrders();
++	void DoWasteOrder(ARegion *,Unit *,WasteOrder *);        
++
++
+     //
+     // Faction limit functions.
+     //
+@@ -501,6 +506,9 @@
+     void Do1Assassinate(ARegion *,Object *,Unit *);
+     void AdjustCityMons( ARegion *pReg );
+     void AdjustCityMon( ARegion *pReg, Unit *u );
++	void UpdateFeatures();
++	void UpdateFames();
++
+ 
+     //
+     // Month long orders
+diff -u -r \atlantis-4.0.10c.tar/gamedata.cpp \aremas-210b/gamedata.cpp
+--- \atlantis-4.0.10c.tar/gamedata.cpp	Wed Jul 17 01:28:42 2002
++++ \aremas-210b/gamedata.cpp	Thu Oct 17 16:41:28 2002
+@@ -1653,6 +1653,78 @@
+ 	 0, 0, 0, 0,
+ 	 -1, 0,
+ 	 I_DAGGER, 1},
++	{"laen","laen","LAEN",
++	 ItemType::DISABLED | ItemType::NOMARKET,
++	 S_MINING,5,1,1, {{-1,0},{-1,0},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}},
++	 10, IT_ADVANCED, 500,0,0,0,
++	 0,0,0,0,
++	 -1,0,
++	 I_PICK,1},
++	{"laen armor","laen armor","LARM",
++	 ItemType::DISABLED | ItemType::NOMARKET,
++	 S_ARMORER,5,3,1, {{I_LAEN,3},{-1,0},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}},  // S_ENCHANT_ARMOR next version
++	 3,IT_ADVANCED | IT_ARMOR, 4000,1,ARMOR_LARMOR,0,
++	 0,0,0,0,
++	 -1,0,
++	 I_HAMMER,1},
++	{"laen sword","laen swords","LSWO",
++	 ItemType::DISABLED | ItemType::NOMARKET,
++	 S_WEAPONSMITH,5,1,1, {{I_LAEN,1},{-1,0},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}}, // S_ENCHANT_SWORDS next version
++	 1,IT_ADVANCED | IT_WEAPON, 1000,1,WEAPON_LSWORD,0,
++	 0,0,0,0,
++	 -1,0,
++	 I_HAMMER,1},
++	{"war spear","war spears","WSPE",
++	 ItemType::DISABLED,
++	 S_WEAPONSMITH,1,1,1, {{I_IRON,1},{-1,0},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}},
++	 1,IT_NORMAL | IT_WEAPON, 60,1,WEAPON_SPEAR2,0,
++	 0,0,0,0,
++	 -1,0,
++	 I_HAMMER,1},
++	{"mithril war spear","mithril war spears","MWSP",
++	 ItemType::DISABLED,
++	 S_WEAPONSMITH,3,1,1, {{I_MITHRIL,1},{-1,0},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}}, // S_ENCHANT_SWORDS next version
++	 1,IT_ADVANCED | IT_WEAPON, 200,1,WEAPON_MSPEAR2,0,
++	 0,0,0,0,
++	 -1,0,
++	 I_HAMMER,1},
++	{"black lotus","black lotus","BLOT",
++	 ItemType::DISABLED,
++	 S_HERBLORE,5,1,1, {{-1,0}, {-1,0},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}},
++	 0, IT_ADVANCED, 1000,0,0,0,
++	 0,0,0,0,
++	 -1,0,
++	 I_BAG,2},
++	{"elixir of life","elixirs of life","ELEX",
++	 ItemType::DISABLED,
++	 S_HEALING,5,5,1, {{I_MUSHROOM,1},{I_BLACKLOTUS,1},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}},
++	 1, IT_ADVANCED, 5000,0,0,0,
++	 0,0,0,0,
++	 -1,0,
++	 -1,0},
++	{"beast","beasts","BEAS",
++	 ItemType::DISABLED,
++	 S_HORSETRAINING,3,1,1, {{-1,0},{-1,0},{-1,0},{-1,0}},
++	 -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}},
++	 100, IT_ADVANCED|IT_MOUNT,50,1,MOUNT_BEAST,0,
++	 120,120,0,0,
++	 -1,0,
++	 I_LASSO,1},
++	{"exceptionnal instrument","exceptionnal instruments","INST",
++	 ItemType::DISABLED,
++	 S_CARPENTER,3,1,1, {{I_YEW, 1}, {-1, 0},{-1,0},{-1,0}},
++	 -1, 0, 0, {{-1,0}, {-1,0},{-1,0},{-1,0}},
++	 1, IT_ADVANCED|IT_TOOL, 500, 0, 0, 0,
++	 0, 0, 0, 0,
++	 -1, 0,
++	 I_DAGGER, 1},
+ 	{"food","food","FOOD",
+ 	 ItemType::DISABLED | ItemType::ORINPUTS | ItemType::SKILLOUT,
+ 	 S_COOKING,1,1,1, {{I_GRAIN,1}, {I_LIVESTOCK,1},{I_FISH,1},{-1,0}},
+@@ -2065,6 +2137,11 @@
+ 	 S_RIDING, -1,
+ 	 PIERCING, ATTACK_RIDING, 1,
+ 	 4, 0, 0},
++	// WEAPON_LSWORD
++	{WeaponType::RIDINGBONUS,
++	 -1, -1,
++	 ARMORPIERCING, ATTACK_COMBAT,1,
++	 6, 6, 0},
+ 	// WEAPON_ABAX
+ 	{WeaponType::RIDINGBONUS,
+ 	 -1, -1,
+@@ -2090,6 +2167,11 @@
+ 	 -1, -1,
+ 	 SLASHING, ATTACK_COMBAT, 1,
+ 	 4, 4, 0},
++	// WEAPON_MSPEAR2
++	{WeaponType::RIDINGBONUS,
++	 -1, -1,
++	 PIERCING, ATTACK_COMBAT, 1,
++	 2, 4, 6},
+ 	// WEAPON_PIKE
+ 	{WeaponType::NOMOUNT | WeaponType::LONG,
+ 	 -1, -1,
+@@ -2120,6 +2202,11 @@
+ 	 -1, -1,
+ 	 SLASHING, ATTACK_COMBAT, 1,
+ 	 2, 2, 0},
++	// WEAPON_SPEAR2
++	{WeaponType::RIDINGBONUS,
++	 -1, -1,
++	 PIERCING, ATTACK_COMBAT, 1,
++	 0, 2, 4},
+ 	// WEAPON_MACE
+ 	{WeaponType::RIDINGBONUS,
+ 	 -1, -1,
+@@ -2195,6 +2282,8 @@
+ 	{ 0, 100, {25, 25, 25, 25, 0, 0, 0, 0}},
+ 	// ARMOR_CLOTHARMOR
+ 	{ ArmorType::USEINASSASSINATE, 6, {1, 1, 1, 1, 0, 0, 0, 0}},
++	// ARMOR_LARMOR
++ 	{ 0, 300, {285, 285, 285, 285, 270, 270, 200, 270}},
+ };
+ 
+ ArmorType *ArmorDefs = armd;
+@@ -2218,6 +2307,8 @@
+ 	{S_RIDING, 2, 3, 3, -1, 0},
+ 	// MOUNT_MOLE
+ 	{S_RIDING, 2, 3, 3, -1, 0},
++	// MOUNT_BEAST
++	{S_RIDING, 1, 3, 3, SPECIAL_CAMEL_FEAR, 3},
+ };
+ 
+ MountType *MountDefs = mountd;
+@@ -3049,6 +3140,24 @@
+ 	 7,0,0,1,
+ 	 I_IRONWOOD,25,-1,0,
+ 	 25,2,3,
++	 -1,-1},
++	{"Wonder",
++	 ObjectType::DISABLED | ObjectType::NEVERDECAY | ObjectType::CANENTER | ObjectType::CANMODIFY,
++	 0,0,0,0,
++	 I_ROOTSTONE,640,S_BUILDING,3,
++	 0,0,0,
++	 -1,-1},
++	{"Shrine",
++	 ObjectType::DISABLED | ObjectType::NEVERDECAY | ObjectType::CANENTER | ObjectType::CANMODIFY,
++	 0,0,0,0,
++	 I_WOOD_OR_STONE,10,S_BUILDING,3,
++	 0,0,0,
++	 -1,-1},
++	{"Mage House",
++	 ObjectType::DISABLED | ObjectType::NEVERDECAY | ObjectType::CANENTER | ObjectType::CANMODIFY,
++	 5,0,0,2,
++	 I_ROOTSTONE,10,S_BUILDING,3,
++	 10,1,2,
+ 	 -1,-1},
+ };
+ 
+diff -u -r \atlantis-4.0.10c.tar/gamedata.h \aremas-210b/gamedata.h
+--- \atlantis-4.0.10c.tar/gamedata.h	Sat Jul 06 04:51:38 2002
++++ \aremas-210b/gamedata.h	Wed Sep 11 22:11:46 2002
+@@ -236,6 +236,15 @@
+ 	I_SHORTBOW,
+ 	I_HEAVYCROSSBOW,
+ 	I_HARP,
++	I_LAEN,
++	I_LARMOR,
++	I_LSWORD,
++	I_SPEAR2,
++	I_MSPEAR2,
++	I_BLACKLOTUS,
++	I_ELIXIR,
++	I_BEAST,
++	I_INSTRUMENT,
+ 	// Generic processed food
+ 	I_FOOD,
+ 	NITEMS
+@@ -366,10 +375,12 @@
+ 	WEAPON_CROSSBOW,
+ 	WEAPON_JAVELIN,
+ 	WEAPON_LANCE,
++ 	WEAPON_LSWORD,
+ 	WEAPON_ADBAXE,
+ 	WEAPON_ADSWORD,
+ 	WEAPON_FSWORD,
+ 	WEAPON_MBAXE,
++	WEAPON_MSPEAR2,
+ 	WEAPON_MSWORD,
+ 	WEAPON_PIKE,
+ 	WEAPON_BAXE,
+@@ -377,6 +388,7 @@
+ 	WEAPON_SABRE,
+ 	WEAPON_MSTAR,
+ 	WEAPON_SWORD,
++	WEAPON_SPEAR2,
+ 	WEAPON_MACE,
+ 	WEAPON_QSTAFF,
+ 	WEAPON_PDAGGER,
+@@ -406,6 +418,7 @@
+ 	ARMOR_CHAINARMOR,
+ 	ARMOR_LEATHERARMOR,
+ 	ARMOR_CLOTHARMOR,
++	ARMOR_LARMOR,
+ 	NUMARMORS
+ };
+ 
+@@ -420,6 +433,7 @@
+ 	MOUNT_MWOLF,
+ 	MOUNT_MSPIDER,
+ 	MOUNT_MOLE,
++	MOUNT_BEAST,
+ 	NUMMOUNTS
+ };
+ 
+@@ -645,6 +659,9 @@
+ 	O_OASIS,
+ 	O_GEMAPPRAISER,
+ 	O_HPTOWER,
++	O_WONDER,
++	O_SHRINE,
++	O_MAGEHOUSE,
+ 	NOBJECTS
+ };
+ 
+diff -u -r \atlantis-4.0.10c.tar/gamedefs.h \aremas-210b/gamedefs.h
+--- \atlantis-4.0.10c.tar/gamedefs.h	Thu Jul 11 19:11:52 2002
++++ \aremas-210b/gamedefs.h	Thu Oct 17 17:06:44 2002
+@@ -570,6 +570,66 @@
+ 	// If we are preventing sail through, should we also prevent the 'easy
+ 	// portage' that the above allows by default?
+ 	int ALLOW_TRIVIAL_PORTAGE;
++	
++	// Is the waste order enabled ? Waste order rises the economy and 
++	// with the Faction feature option the Wealth Feature. 
++	int ALLOW_WASTE;
++
++	// Ratio Waste / Unclaimed earned
++	// Amount a player must spend with WASTE order to gain 1 unclaimed silver 
++	int RATIO_WASTE;
++
++	// If this enabled, then Faction has Feature (Fame, Wealth, Power, Terror).
++	// They are displayed at the Player.out file. Each Feature has his own code.
++	// The GM has to parse the Player.out to broadcast the information.
++	// The features don't modify or change the world.
++	// The features only try to reflect the public opinion about the factions.
++	int FACTION_FEATURE_ON;
++	
++	// Adjustement Features about Fame
++	// Art gained cause of Artists per skill level and per man in Entertainment
++	int ARTIST_FAME;
++	// Terror gained cause of Mage per skill level in magic skills
++	int MAGE_FAME;
++	// Terror gained cause of Unit per Orc present
++	int ORC_FAME;
++	
++	// Does Elixir Market present in every city ?
++	int SPECIAL_ELIXIR_MARKET;
++	
++	// Men in excess in Starting City disappear ...
++	// SAFE_START_CITIES must be set to 1
++	// This option is to avoid the "Worker Horde" effect in safe city 
++	// Faction with more than 400-600 men in a starting safe city have 10% loss on excess men
++	int STARTING_CITIES_HAVE_LIMITATION;
++	
++	// Assassination rules are modified
++	// - Riding skill is useless 
++	// - Weapon is always ready
++	int NEW_ASSASSINATION_RULES;
++	
++	// Shield Spell Efficiency
++	// Each level in shield spell counts for x = SHIELD_FACTOR 
++	int SHIELD_FACTOR;
++	
++	// Required men for pillage
++	// To pillage a region, the pillagers must be more numerous
++	// than PILLAGERS_FACTOR times maximum taxers,
++	// where maximum taxers is the number of men required to take ALL the taxe
++	int PILLAGERS_FACTOR;
++	
++	// Pillage Gain
++	// Pillage money is equivalent of PILLAGE_FACTOR months of full taxe
++	int PILLAGE_FACTOR;
++	
++	// If this enabled, then when pillage occurs in a village, town or city, 
++	// population decrease from 1/8 to 1/4 (variable on size and luck).
++	int DEADLY_PILLAGE;
++
++
++	// Alternate REVEAL_UNIT and REVEAL_FACTION flags in region report
++	int ALT_REVEAL_FLAG;
++	
+ };
+ 
+ extern GameDefs * Globals;
+diff -u -r \atlantis-4.0.10c.tar/items.h \aremas-210b/items.h
+--- \atlantis-4.0.10c.tar/items.h	Wed Jul 17 01:28:42 2002
++++ \aremas-210b/items.h	Wed Aug 21 18:04:16 2002
+@@ -60,7 +60,8 @@
+ 	IT_BATTLE = 0x0200,
+ 	IT_SPECIAL = 0x0400,
+ 	IT_TOOL = 0x0800,
+-	IT_FOOD = 0x1000
++	IT_FOOD = 0x1000,
++	IT_ARTEFACT = 0x2000
+ };
+ 
+ struct Materials
+@@ -85,6 +86,9 @@
+ 			// A number of items are produced equal to the producer's
+ 			// skill, based on a fixed number of inputs
+ 			SKILLOUT = 0x10,
++			CANTLOSE = 0x20,
++			USEABLE  = 0x40
++
+ 		};
+ 		int flags;
+ 
+diff -u -r \atlantis-4.0.10c.tar/market.cpp \aremas-210b/market.cpp
+--- \atlantis-4.0.10c.tar/market.cpp	Thu Jul 05 02:18:02 2001
++++ \aremas-210b/market.cpp	Thu Oct 17 15:36:28 2002
+@@ -51,7 +51,7 @@
+   activity = 0;
+ }
+ 
+-void Market::PostTurn(int population,int wages)
++void Market::PostTurn(int population,int wages, int wasted = 0)
+ {
+     if( !( Globals->VARIABLE_ECONOMY ))
+     {
+@@ -108,6 +108,13 @@
+                 (maxpop - minpop);
+         }
+     }
++
++	// Wasted money effect on Trade market
++	if (Globals->ALLOW_WASTE) {
++		float ratio2 = wasted / (float) (population * 4);
++		if (ratio2 > 0.5) ratio2 = 0.5;
++		amount += (int) (amount*ratio2);
++	}
+ }
+ 
+ void Market::Writeout(Aoutfile * f) {
+@@ -140,9 +147,9 @@
+   return temp;
+ }
+ 
+-void MarketList::PostTurn(int population,int wages) {
++void MarketList::PostTurn(int population,int wages, int wasted = 0) {
+   forlist(this) {
+-    ((Market *) elem)->PostTurn(population,wages);
++    ((Market *) elem)->PostTurn(population,wages,wasted);
+   }
+ }
+ 
+diff -u -r \atlantis-4.0.10c.tar/market.h \aremas-210b/market.h
+--- \atlantis-4.0.10c.tar/market.h	Sun Feb 11 09:17:22 2001
++++ \aremas-210b/market.h	Sun Sep 01 22:51:48 2002
+@@ -53,7 +53,7 @@
+   int baseprice;
+   int activity;
+ 
+-  void PostTurn(int,int);
++  void PostTurn(int,int,int);
+   void Writeout(Aoutfile * f);
+   void Readin(Ainfile * f);
+   AString Report();
+@@ -61,7 +61,7 @@
+ 
+ class MarketList : public AList {
+ public:
+-  void PostTurn(int,int);
++  void PostTurn(int,int,int);
+   void Writeout(Aoutfile * f);
+   void Readin(Ainfile * f);
+ };
+diff -u -r \atlantis-4.0.10c.tar/object.cpp \aremas-210b/object.cpp
+--- \atlantis-4.0.10c.tar/object.cpp	Thu Jul 11 19:11:52 2002
++++ \aremas-210b/object.cpp	Fri Aug 23 11:02:24 2002
+@@ -348,6 +348,12 @@
+ 	return 0;
+ }
+ 
++int Object::IsWonder()
++{
++	if (type == O_WONDER) return 1;
++	return 0;
++}
++
+ AString *ObjectDescription(int obj)
+ {
+ 	if(ObjectDefs[obj].flags & ObjectType::DISABLED)
+diff -u -r \atlantis-4.0.10c.tar/object.h \aremas-210b/object.h
+--- \atlantis-4.0.10c.tar/object.h	Thu Jul 11 19:11:52 2002
++++ \aremas-210b/object.h	Thu Aug 29 02:11:38 2002
+@@ -97,6 +97,8 @@
+ 		// AS
+ 		int IsRoad();
+ 
++		int IsWonder();
++
+ 		int IsBoat();
+ 		int IsBuilding();
+ 		int CanModify();
+diff -u -r \atlantis-4.0.10c.tar/orders.cpp \aremas-210b/orders.cpp
+--- \atlantis-4.0.10c.tar/orders.cpp	Mon May 06 01:29:08 2002
++++ \aremas-210b/orders.cpp	Thu Oct 17 17:14:36 2002
+@@ -82,6 +82,7 @@
+ 	"tax",
+ 	"teach",
+ 	"turn",
++	"waste",
+ 	"weapon",
+ 	"withdraw",
+ 	"work",
+@@ -323,3 +324,13 @@
+ EvictOrder::~EvictOrder()
+ {
+ }
++
++WasteOrder::WasteOrder()
++{
++	type = O_WASTE;
++}
++
++WasteOrder::~WasteOrder()
++{
++}
++
+diff -u -r \atlantis-4.0.10c.tar/orders.h \aremas-210b/orders.h
+--- \atlantis-4.0.10c.tar/orders.h	Mon May 06 01:29:08 2002
++++ \aremas-210b/orders.h	Thu Oct 17 17:14:34 2002
+@@ -46,6 +46,7 @@
+ class TeleportOrder;
+ class ForgetOrder;
+ class EvictOrder;
++class WasteOrder;
+ 
+ #include "unit.h"
+ #include "gamedefs.h"
+@@ -110,6 +111,7 @@
+ 	O_TAX,
+ 	O_TEACH,
+ 	O_TURN,
++	O_WASTE,
+ 	O_WEAPON,
+ 	O_WITHDRAW,
+ 	O_WORK,
+@@ -359,6 +361,14 @@
+ 		~EvictOrder();
+ 
+ 		AList targets;
++};
++
++class WasteOrder : public Order {
++	public:
++		WasteOrder();
++		~WasteOrder();
++
++		int amount;
+ };
+ 
+ 
+diff -u -r \atlantis-4.0.10c.tar/parseorders.cpp \aremas-210b/parseorders.cpp
+--- \atlantis-4.0.10c.tar/parseorders.cpp	Sat Jun 29 03:38:44 2002
++++ \aremas-210b/parseorders.cpp	Thu Oct 17 17:17:22 2002
+@@ -604,6 +604,9 @@
+ 		case O_TEACH:
+ 			ProcessTeachOrder(unit, o, pCheck);
+ 			break;
++		case O_WASTE:
++			ProcessWasteOrder( unit, o, pCheck );
++			break;
+ 		case O_WORK:
+ 			ProcessWorkOrder(unit, pCheck);
+ 			break;
+@@ -2711,4 +2714,28 @@
+ 		}
+ 		id = ParseUnit(o);
+ 	}
++}
++
++void Game::ProcessWasteOrder(Unit *unit, AString *o, OrdersCheck *pCheck) // jmbnr add
++{
++	if(!(Globals->ALLOW_WASTE)) {
++		ParseError(pCheck, unit, 0, "WASTE is not a valid order.");
++		return;
++	}
++
++	AString *token = o->gettoken();
++	if(!token) {
++		ParseError (pCheck, unit, 0, "WASTE: No amount given.");
++		return;
++	}
++	int amt = token->value();
++	if (amt < 1) amt = 0;
++	delete token;
++
++	if( !pCheck ) { //xxxx
++		WasteOrder *order = new WasteOrder;
++		order->amount = amt;
++		unit->wasteorders.Add(order);
++	}
++	return;
+ }
+diff -u -r \atlantis-4.0.10c.tar/realms/rules.cpp \aremas-210b/realms/rules.cpp
+--- \atlantis-4.0.10c.tar/realms/rules.cpp	Thu Jul 11 19:11:58 2002
++++ \aremas-210b/realms/rules.cpp	Thu Oct 17 16:35:06 2002
+@@ -191,6 +191,21 @@
+ 	10,	// UPKEEP_FOOD_VALUE
+ 	0,	// PREVENT_SAIL_THROUGH
+ 	0,	// ALLOW_TRIVIAL_PORTAGE
++
++	0,	// ALLOW_WASTE
++	100,	// RATIO_WASTE
++	0,	// FACTION_FEATURE_ON
++	500,	// ARTIST_FAME
++	500, 	// MAGE_FAME
++	50,	// ORC_FAME
++	0,	// SPECIAL_ELIXIR_MARKET
++	0,	// STARTING_CITIES_HAVE_LIMITATION
++	0,	// NEW_ASSASSINATION_RULES
++	1,	// SHIELD_FACTOR
++	2,	// PILLAGERS_FACTOR
++	2,	// PILLAGE_FACTOR
++	0,	// DEADLY_PILLAGE
++	0,	// ALT_REVEAL_FLAG
+ };
+ 
+ GameDefs * Globals = &g;
+diff -u -r \atlantis-4.0.10c.tar/runorders.cpp \aremas-210b/runorders.cpp
+--- \atlantis-4.0.10c.tar/runorders.cpp	Sat Aug 31 07:39:32 2002
++++ \aremas-210b/runorders.cpp	Thu Oct 17 17:38:28 2002
+@@ -51,6 +51,10 @@
+ 	DoGiveOrders();
+ 	Awrite("Running EXCHANGE Orders...");
+ 	DoExchangeOrders();
++	if(Globals->ALLOW_WASTE) {
++		Awrite("Running WASTE Orders..."); //jmbnr add
++		DoWasteOrders(); // jmbnr add
++	}
+ 	Awrite("Running DESTROY Orders...");
+ 	RunDestroyOrders();
+ 	Awrite("Running PILLAGE Orders...");
+@@ -94,6 +98,10 @@
+ 	RunTeleportOrders();
+ 	Awrite("Assessing Maintenance costs...");
+ 	AssessMaintenance();
++    	if(Globals->FACTION_FEATURE_ON) {
++		Awrite("Updating Features...");
++		UpdateFeatures();
++	}
+ 	Awrite("Post-Turn Processing...");
+ 	PostProcessTurn();
+ 	DeleteEmptyUnits();
+@@ -758,6 +766,9 @@
+ 				u->Event(AString("Collects $") + amt + " in taxes in " +
+ 						reg->ShortPrint( &regions ) + ".");
+ 				u->taxing = TAX_NONE;
++				// if Feature is on, increase Power Faction Feature
++				if (Globals->FACTION_FEATURE_ON) u->faction->feature[F_POWER] += amt;
++
+ 			}
+ 		}
+ 	}
+@@ -825,13 +836,13 @@
+ 	/* First, count up pillagers */
+ 	int pillagers = CountPillagers(reg);
+ 
+-	if (pillagers * 2 < reg->money / Globals->TAX_INCOME) {
++	if (pillagers * Globals->PILLAGERS_FACTOR < reg->money / Globals->TAX_INCOME) {
+ 		ClearPillagers(reg);
+ 		return;
+ 	}
+ 
+ 	AList * facs = reg->PresentFactions();
+-	int amt = reg->money * 2;
++	int amt = reg->money * Globals->PILLAGE_FACTOR;
+ 	forlist(&reg->objects) {
+ 		Object * o = (Object *) elem;
+ 		forlist(&o->units) {
+@@ -852,6 +863,11 @@
+ 								*(reg->name) + ".");
+ 					}
+ 				}
++				// if Feature is on, increase Power and Terror Faction Feature
++				if (Globals->FACTION_FEATURE_ON) {
++					u->faction->feature[F_POWER] += temp;
++					u->faction->feature[F_TERROR] += temp;
++				}
+ 			}
+ 		}
+ 	}
+@@ -861,6 +877,23 @@
+ 	reg->money = 0;
+ 	reg->wages -= 6;
+ 	if (reg->wages < 6) reg->wages = 6;
++	
++	// Population victims
++	if (Globals->DEADLY_PILLAGE && reg->town) {
++		int temp_factor;
++		switch (reg->town->TownType()) {
++		case TOWN_VILLAGE:
++			temp_factor = 7;
++		case TOWN_TOWN:
++			temp_factor = 6;
++		case TOWN_CITY:
++			temp_factor = 5;
++		}
++		temp_factor += getrandom(3)-1;
++		reg->town->pop -= (reg->town->pop / temp_factor);
++		reg->town->basepop = reg->town->pop;
++		
++	}
+ }
+ 
+ void Game::RunPromoteOrders()
+@@ -2501,6 +2534,95 @@
+ 			if (unit->IsAlive() == 0) {
+ 				region->Kill(unit);
+ 			}
++		}
++	}
++}
++
++
++void Game::DoWasteOrders()
++{
++	forlist((&regions)) {
++		ARegion * r = (ARegion *) elem;
++		forlist((&r->objects)) {
++			Object * obj = (Object *) elem;
++			forlist((&obj->units)) {
++				Unit * u = (Unit *) elem;
++				forlist((&u->wasteorders)) {
++					Order * o = (Order *) elem;
++					DoWasteOrder(r,u,(WasteOrder *) o);
++				}
++			}
++		}
++	}
++}
++
++void Game::DoWasteOrder(ARegion * r,Unit * u,WasteOrder * o)
++{
++
++	// Check there is enough to waste
++	int amt = o->amount;
++	if (amt > u->GetMoney() ) {
++		u->Error("WASTE: Not enough.");
++		amt = u->GetMoney();
++	}
++
++	// transfer money to unclaimed faction's silver
++	u->faction->unclaimed += (amt / Globals->RATIO_WASTE);
++	u->SetMoney(u->GetMoney() - amt);
++	u->Event(AString("Wastes $") + amt + ".");
++	u->wasteorders.Remove(o);
++	
++	// add wasted amount to the region
++	r->wasted += amt;
++	
++	// add wasted amount to the wealth feature
++	if (Globals->FACTION_FEATURE_ON) {
++		u->faction->feature[F_WEALTH] += amt;
++	}
++}
++
++void Game::UpdateFeatures() 
++{
++	// F_POWER, F_WEALTH and F_TERROR are also processed with TAX, PILLAGE and WASTE orders
++	forlist((&regions)) {
++		ARegion * r = (ARegion *) elem;
++		forlist((&r->objects)) {
++			Object * obj = (Object *) elem;
++			forlist((&obj->units)) {
++				Unit * u = (Unit *) elem;
++				// Update F_ARTS
++				u->faction->feature[F_ARTS] += Globals->ARTIST_FAME * u->GetEntertainment(); // xxxx to clarify
++				
++				// Update F_TERROR
++				if (u->type == U_MAGE) {
++					forlist(&u->skills) {
++						Skill * s = (Skill *) elem;
++						if( SkillDefs[s->type].flags & SkillType::MAGIC ) {
++							u->faction->feature[F_TERROR] += Globals->MAGE_FAME * u->GetSkill(s->type);
++						}
++					}
++				}
++				forlist(&u->items) {
++					Item *i = (Item *) elem;
++					if (i->type == I_ORC) {
++						u->faction->feature[F_TERROR] += Globals->ORC_FAME * i->num;
++					}
++				}
++			}
++		}
++	}
++	UpdateFames();
++
++}
++
++void Game::UpdateFames() 
++{
++	// Update F_FAME
++	forlist(&factions) {
++		Faction * fac = (Faction *) elem;
++		fac->feature[F_FAME] = 0 ;
++		for (int i = 1; i < NFACFEATURES ; i++) {
++			fac->feature[F_FAME] += fac->feature[i];
+ 		}
+ 	}
+ }
+diff -u -r \atlantis-4.0.10c.tar/specials.cpp \aremas-210b/specials.cpp
+--- \atlantis-4.0.10c.tar/specials.cpp	Sun May 12 18:48:42 2002
++++ \aremas-210b/specials.cpp	Fri Aug 23 15:42:50 2002
+@@ -166,7 +166,7 @@
+ 				if(spd->shield[shtype] == -1) continue;
+ 				Shield *sh = new Shield;
+ 				sh->shieldtype = spd->shield[shtype];
+-				sh->shieldskill = a->soldiers[i]->slevel;
++				sh->shieldskill = Globals->SHIELD_FACTOR*(a->soldiers[i]->slevel); // Shield efficiency increase by SHIELD_FACTOR
+ 				a->shields.Add(sh);
+ 			}
+ 		}
+@@ -187,7 +187,7 @@
+ }
+ 
+ void Battle::DoSpecialAttack(int round, Soldier *a, Army *attackers,
+-		Army *def, int behind)
++		Army *def, int behind, int ass)
+ {
+ 	SpecialType *spd;
+ 	int i, num, tot = -1;
+@@ -209,7 +209,7 @@
+         num = def->DoAnAttack(a->special, realtimes,
+ 				spd->damage[i].type, a->slevel,
+ 				spd->damage[i].flags, spd->damage[i].dclass,
+-				spd->damage[i].effect, 0);
++				spd->damage[i].effect, 0, ass);
+ 		if(spd->effectflags & SpecialType::FX_DONT_COMBINE && num != -1) {
+ 			if(spd->damage[i].effect == -1) {
+ 				results[dam] = AString("killing ") + num;
+diff -u -r \atlantis-4.0.10c.tar/standard/rules.cpp \aremas-210b/standard/rules.cpp
+--- \atlantis-4.0.10c.tar/standard/rules.cpp	Thu Jul 11 19:12:00 2002
++++ \aremas-210b/standard/rules.cpp	Thu Oct 17 16:35:26 2002
+@@ -191,6 +191,21 @@
+ 	10,	// UPKEEP_FOOD_VALUE
+ 	0,	// PREVENT_SAIL_THROUGH
+ 	0,	// ALLOW_TRIVIAL_PORTAGE
++
++	0,	// ALLOW_WASTE
++	100,	// RATIO_WASTE
++	0,	// FACTION_FEATURE_ON
++	500,	// ARTIST_FAME
++	500, 	// MAGE_FAME
++	50,	// ORC_FAME
++	0,	// SPECIAL_ELIXIR_MARKET
++	0,	// STARTING_CITIES_HAVE_LIMITATION
++	0,	// NEW_ASSASSINATION_RULES
++	1,	// SHIELD_FACTOR
++	2,	// PILLAGERS_FACTOR
++	2,	// PILLAGE_FACTOR
++	0,	// DEADLY_PILLAGE
++	0,	// ALT_REVEAL_FLAG
+ };
+ 
+ GameDefs * Globals = &g;
+diff -u -r \atlantis-4.0.10c.tar/unit.cpp \aremas-210b/unit.cpp
+--- \atlantis-4.0.10c.tar/unit.cpp	Thu Oct 03 21:41:08 2002
++++ \aremas-210b/unit.cpp	Thu Oct 17 14:42:46 2002
+@@ -422,6 +422,11 @@
+ 	}
+ 
+ 	if (guard == GUARD_GUARD) temp += ", on guard";
++	if (Globals->ALT_REVEAL_FLAG > 0) {
++		if (reveal == REVEAL_UNIT) temp += ", revealing unit";
++		if (reveal == REVEAL_FACTION) temp += ", revealing faction";
++	}
++
+ 	if (obs > 0) {
+ 		temp += AString(", ") + *faction->name;
+ 		if (guard == GUARD_AVOID) temp += ", avoiding";
+@@ -429,8 +434,11 @@
+ 	}
+ 
+ 	if (obs == 2) {
+-		if (reveal == REVEAL_UNIT) temp += ", revealing unit";
+-		if (reveal == REVEAL_FACTION) temp += ", revealing faction";
++		if (Globals->ALT_REVEAL_FLAG ==  0) {
++			if (reveal == REVEAL_UNIT) temp += ", revealing unit";
++			if (reveal == REVEAL_FACTION) temp += ", revealing faction";
++		}
++
+ 		if (GetFlag(FLAG_HOLDING)) temp += ", holding";
+ 		if (GetFlag(FLAG_AUTOTAX)) temp += ", taxing";
+ 		if (GetFlag(FLAG_NOAID)) temp += ", receiving no aid";
+diff -u -r \atlantis-4.0.10c.tar/unit.h \aremas-210b/unit.h
+--- \atlantis-4.0.10c.tar/unit.h	Thu Jul 11 18:03:54 2002
++++ \aremas-210b/unit.h	Thu Oct 17 17:38:54 2002
+@@ -276,6 +276,9 @@
+ 		Order *presentMonthOrders;
+ 		int presentTaxing;
+ 		Unit *former;
++		
++		AList wasteorders;
++
+ };
+ 
+ #endif
+diff -u -r \atlantis-4.0.10c.tar/wyreth/rules.cpp \aremas-210b/wyreth/rules.cpp
+--- \atlantis-4.0.10c.tar/wyreth/rules.cpp	Thu Jul 11 19:12:02 2002
++++ \aremas-210b/wyreth/rules.cpp	Thu Oct 17 16:35:46 2002
+@@ -190,6 +190,21 @@
+ 	10,	// UPKEEP_FOOD_VALUE
+ 	0,	// PREVENT_SAIL_THROUGH
+ 	0,	// ALLOW_TRIVIAL_PORTAGE
++
++	0,	// ALLOW_WASTE
++	100,	// RATIO_WASTE
++	0,	// FACTION_FEATURE_ON
++	500,	// ARTIST_FAME
++	500, 	// MAGE_FAME
++	50,	// ORC_FAME
++	0,	// SPECIAL_ELIXIR_MARKET
++	0,	// STARTING_CITIES_HAVE_LIMITATION
++	0,	// NEW_ASSASSINATION_RULES
++	1,	// SHIELD_FACTOR
++	2,	// PILLAGERS_FACTOR
++	2,	// PILLAGE_FACTOR
++	0,	// DEADLY_PILLAGE
++	0,	// ALT_REVEAL_FLAG
+ };
+ 
+ GameDefs * Globals = &g;

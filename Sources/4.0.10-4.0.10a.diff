@@ -1,0 +1,70 @@
+Index: CHANGELOG
+===================================================================
+RCS file: /home/cvs/atlantis/CHANGELOG,v
+retrieving revision 1.106
+diff -u -r1.106 CHANGELOG
+--- CHANGELOG	19 Jul 2002 21:09:35 -0000	1.106
++++ CHANGELOG	22 Jul 2002 20:42:36 -0000
+@@ -546,3 +546,8 @@
+    -- Fixed a bug in teleport and such which allowed entry into and out of
+       the Abyss (and viewing it via farsight and such).  Bad JT, no biscuit.
+       Thanks AZ for pointing it out.
++
++Changes from 4.0.10 -> 4.0.10a
++--------------------------------------------------
++   -- Fixed bug in conquest map generation caused by terrain change patch
++   -- Fixed potential namespace collision on 'fill' in template.cpp
+Index: aregion.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/aregion.cpp,v
+retrieving revision 1.50
+diff -u -r1.50 aregion.cpp
+--- aregion.cpp	19 Jul 2002 21:09:35 -0000	1.50
++++ aregion.cpp	22 Jul 2002 20:40:38 -0000
+@@ -3151,11 +3151,13 @@
+ 						adjname = newregion->wages;
+ 					}
+ 				}
+-				if (adjtype) {
++				if (adjtype && !Globals->CONQUEST_GAME) {
+ 					reg->type = adjtype;
+ 					reg->wages = adjname;
+-				} else reg->type = GetRegType(reg);
+-				reg->wages = AGetName(0);
++				} else {
++					reg->type = GetRegType(reg);
++					reg->wages = AGetName(0);
++				}
+ 			}
+ 		}
+ 	}
+Index: template.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/template.cpp,v
+retrieving revision 1.11
+diff -u -r1.11 template.cpp
+--- template.cpp	6 Jul 2002 02:51:38 -0000	1.11
++++ template.cpp	22 Jul 2002 20:37:40 -0000
+@@ -74,7 +74,7 @@
+ };
+ 
+ 
+-static char *fill[] = {
++static char *terfill[] = {
+  // block
+  " #### ",
+  " #### ",
+@@ -566,11 +566,11 @@
+                     if (len > FILL_SIZE) len = FILL_SIZE;
+                     memcpy(dest + x, name, len);
+                 } else {
+-                    memcpy(dest + x, fill[t], FILL_SIZE);
++                    memcpy(dest + x, terfill[t], FILL_SIZE);
+                 }
+             } else {
+                 t++;
+-                memcpy(dest + x, fill[t], FILL_SIZE);
++                memcpy(dest + x, terfill[t], FILL_SIZE);
+             }
+         }
+ 

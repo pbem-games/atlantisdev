@@ -1,0 +1,164 @@
+Index: astring.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/astring.cpp,v
+retrieving revision 1.5
+diff -u -r1.5 astring.cpp
+--- astring.cpp	2001/10/19 23:04:33	1.5
++++ astring.cpp	2002/04/22 16:48:05
+@@ -325,7 +325,7 @@
+ {
+ 	int place = 0;
+ 	int ret = 0;
+-	while ((str[place] >= '0') && (str[place] <= '9') && place < 7) {
++	while ((str[place] >= '0') && (str[place] <= '9')) {
+ 		ret *= 10;
+ 		ret += (str[place++] - '0');
+ 	}
+Index: parseorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/parseorders.cpp,v
+retrieving revision 1.35.2.1
+diff -u -r1.35.2.1 parseorders.cpp
+--- parseorders.cpp	2002/01/26 04:47:42	1.35.2.1
++++ parseorders.cpp	2002/05/05 18:02:57
+@@ -303,6 +303,7 @@
+ 				}
+ 
+ 				if(unit && pCheck) unit->ClearOrders();
++				if(former && pCheck) former->ClearOrders();
+ 
+ 				former = 0;
+ 				unit = 0;
+@@ -312,6 +313,7 @@
+ 			case O_UNIT:
+ 				if (fac) {
+ 					if (former) {
++						if (pCheck) former->ClearOrders();
+ 						former = 0;
+ 						ParseError( pCheck, 0, fac, "FORM: without END." );
+ 						formerOnTurnDelay = 0;
+@@ -2919,7 +2921,8 @@
+ 			u->monthorders = &( pCheck->dummyOrder );
+ 			u->monthorders->type = O_SAIL;
+ 		} else {
+-			if ((u->orderDelayMonthOrders && u->monthorders->type != O_SAIL) ||
++			if ((u->orderDelayMonthOrders &&
++						u->orderDelayMonthOrders->type != O_SAIL) ||
+ 					(Globals->TAX_PILLAGE_MONTH_LONG &&
+ 					 ((u->taxing == TAX_TAX) || (u->taxing == TAX_PILLAGE)))) {
+ 				pCheck->Error("SAIL: Overwriting previous DELAYED month-long "
+Index: runorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/runorders.cpp,v
+retrieving revision 1.25.2.3
+diff -u -r1.25.2.3 runorders.cpp
+--- runorders.cpp	2002/04/09 04:51:04	1.25.2.3
++++ runorders.cpp	2002/05/04 16:11:28
+@@ -1313,7 +1313,6 @@
+ 					u->Event(AString("Sells ") + ItemString(o->item,temp)
+ 							+ " at $" + m->price + " each.");
+ 					delete o;
+-					break;
+ 				}
+ 			}
+ 		}
+@@ -1442,7 +1441,6 @@
+ 					u->Event(AString("Buys ") + ItemString(o->item,temp)
+ 							+ " at $" + m->price + " each.");
+ 					delete o;
+-					break;
+ 				}
+ 			}
+ 		}
+Index: skillshows.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/skillshows.cpp,v
+retrieving revision 1.26
+diff -u -r1.26 skillshows.cpp
+--- skillshows.cpp	2001/10/23 18:26:07	1.26
++++ skillshows.cpp	2002/04/25 16:09:17
+@@ -621,13 +621,13 @@
+ 			*str += "A mage with the Summon Balrog skill may summon a balrog "
+ 				"into his inventory, to aid him in combat. A mage has a 20 "
+ 				"percent times his skill level chance of summoning a balrog, "
+-				"but may only control one balrog at a time. As with other "
+-				"demons, the balrog has a chance of breaking free of the "
+-				"mage's control at the end of each turn. This chance is equal "
+-				"to 1 over 4 times the mage's skill level to the fourth "
+-				"power (or, from 1 over 4 at level 1, to 1 over 250 at "
+-				"level 5). To use this spell, the mage should issue the "
+-				"order CAST Summon_Balrog.";
++				"but may only summon a balrog if one is not already under "
++				"his control. As with other demons, the balrog has a chance "
++				"of breaking free of the mage's control at the end of each "
++				"turn. This chance is equal to 1 over 4 times the mage's "
++				"skill level to the fourth power (or, from 1 over 4 at "
++				"level 1, to 1 over 2500 at level 5). To use this spell, "
++				"the mage should issue the order CAST Summon_Balrog.";
+ 			break;
+ 		case S_BANISH_DEMONS:
+ 			if(level > 1) break;
+Index: specials.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/specials.cpp,v
+retrieving revision 1.12
+diff -u -r1.12 specials.cpp
+--- specials.cpp	2001/10/13 07:26:45	1.12
++++ specials.cpp	2002/05/12 16:49:08
+@@ -82,6 +82,7 @@
+ 
+ 	if(spd->targflags & SpecialType::HIT_SOLDIERIF) {
+ 		match = 0;
++		if (soldiers[tar]->race == -1) return 0;
+ 		for(i = 0; i < 7; i++) {
+ 			if(soldiers[tar]->race == spd->targets[i]) match = 1;
+ 		}
+@@ -90,6 +91,7 @@
+ 
+ 	if(spd->targflags & SpecialType::HIT_SOLDIEREXCEPT) {
+ 		match = 0;
++		if (soldiers[tar]->race == -1) return 0;
+ 		for(i = 0; i < 7; i++) {
+ 			if(soldiers[tar]->race == spd->targets[i]) match = 1;
+ 		}
+@@ -114,6 +116,7 @@
+ 
+ 	if(spd->targflags & SpecialType::HIT_MOUNTIF) {
+ 		match = 0;
++		if (soldiers[tar]->riding == -1) return 0;
+ 		for(i = 0; i < 7; i++) {
+ 			if(soldiers[tar]->riding == spd->targets[i]) match = 1;
+ 		}
+@@ -122,6 +125,7 @@
+ 
+ 	if(spd->targflags & SpecialType::HIT_MOUNTEXCEPT) {
+ 		match = 0;
++		if (soldiers[tar]->riding == -1) return 0;
+ 		for(i = 0; i < 7; i++) {
+ 			if(soldiers[tar]->riding == spd->targets[i]) match = 1;
+ 		}
+Index: unit.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/unit.cpp,v
+retrieving revision 1.39.2.3
+diff -u -r1.39.2.3 unit.cpp
+--- unit.cpp	2002/04/06 20:14:42	1.39.2.3
++++ unit.cpp	2002/05/12 16:58:15
+@@ -768,7 +768,7 @@
+ 				return riding;
+ 			}
+ 			/* XXX -- Fix this -- Should also be able to carry the man */
+-			if (ItemDefs[i->type].ride - ItemDefs[i->type].weight) {
++			if (ItemDefs[i->type].ride - ItemDefs[i->type].weight >= 10) {
+ 				if (riding <= 3) return riding;
+ 				lowriding = 3;
+ 			}
+@@ -1499,7 +1499,7 @@
+ 			// returns -1 if weapon cannot be used, else the usable skill level
+ 			if(baseSkillLevel == -1) continue;
+ 			// Attack and defense skill
+-			if(!pWep->flags & WeaponType::NEEDSKILL)
++			if(!(pWep->flags & WeaponType::NEEDSKILL))
+ 				baseSkillLevel = combatSkill;
+ 			attackBonus = baseSkillLevel + pWep->attackBonus;
+ 			if(pWep->flags & WeaponType::NOATTACKERSKILL)

@@ -1,0 +1,15 @@
+Index: game.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/game.cpp,v
+retrieving revision 1.45.2.1
+diff -u -r1.45.2.1 game.cpp
+--- game.cpp	2001/12/22 16:48:39	1.45.2.1
++++ game.cpp	2002/01/11 20:40:52
+@@ -1616,6 +1616,7 @@
+ {
+ 	for(int i=1; i <= regions.numberofgates; i++) {
+ 		ARegion *tar = regions.FindGate(i);
++		if(tar) continue; // This gate exists, continue
+ 		int done = 0;
+ 		while(!done) {
+ 			// We have a missing gate, add it

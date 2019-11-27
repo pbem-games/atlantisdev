@@ -1,0 +1,170 @@
+Index: CHANGELOG
+===================================================================
+RCS file: /home/cvs/atlantis/CHANGELOG,v
+retrieving revision 1.106.2.7
+diff -u -r1.106.2.7 CHANGELOG
+--- CHANGELOG	17 Dec 2002 22:45:46 -0000	1.106.2.7
++++ CHANGELOG	17 Dec 2002 22:46:21 -0000
+@@ -601,3 +601,10 @@
+ --------------------------------------------------
+    -- Fixed bug in practice code where non-leader units would keep trying
+       to practice and generate errors even after they were at max level.
++
++Changes from 4.0.10f -> 4.0.10g
++--------------------------------------------------
++   -- Changed USE_PREPARE slightly.  There is now a 'strict' and a 'normal'
++      setting for USE_PREPARE.  Under strict, the READY command MUST be
++      used or the unit will not use any battle items.  Under normal, the
++      unit will fall back on the battle items list.
+Index: army.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/army.cpp,v
+retrieving revision 1.51.2.1
+diff -u -r1.51.2.1 army.cpp
+--- army.cpp	19 Oct 2002 04:03:41 -0000	1.51.2.1
++++ army.cpp	11 Dec 2002 18:18:33 -0000
+@@ -282,6 +282,8 @@
+ 		// it's the right one, or unless it is a shield which doesn't
+ 		// need preparing.
+ 		if(!Globals->USE_PREPARE_COMMAND ||
++				((unit->readyItem == -1) &&
++				 (Globals->USE_PREPARE_COMMAND == GameDefs::PREPARE_NORMAL)) ||
+ 				(pBat->itemNum==unit->readyItem) ||
+ 				(pBat->flags & BattleItemType::SHIELD)) {
+ 			if((pBat->flags & BattleItemType::SPECIAL) && special != -1) {
+Index: gamedefs.h
+===================================================================
+RCS file: /home/cvs/atlantis/gamedefs.h,v
+retrieving revision 1.43
+diff -u -r1.43 gamedefs.h
+--- gamedefs.h	11 Jul 2002 17:11:52 -0000	1.43
++++ gamedefs.h	11 Dec 2002 18:17:17 -0000
+@@ -414,6 +414,13 @@
+ 	int MARKETS_SHOW_ADVANCED_ITEMS;
+ 
+ 	// Do we require the 'ready' command to set up battle items
++	// If prepare is strict, then the READY command MUST be used
++	// and there will be no automatic selection of battle items.
++	enum {
++		PREPARE_NONE = 0,
++		PREPARE_NORMAL = 1,
++		PREPARE_STRICT = 2,
++	};
+ 	int USE_PREPARE_COMMAND;
+ 
+ 	// Monsters have the option of advancing occasionally instead of just
+Index: genrules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/genrules.cpp,v
+retrieving revision 1.46.2.2
+diff -u -r1.46.2.2 genrules.cpp
+--- genrules.cpp	20 Nov 2002 21:53:37 -0000	1.46.2.2
++++ genrules.cpp	11 Dec 2002 18:12:32 -0000
+@@ -4635,14 +4635,22 @@
+ 		f.ClassTagText("DIV", "rule", "");
+ 		f.LinkRef("prepare");
+ 		f.TagText("H4", "PREPARE [item]");
+-		temp = "This command allows a mage or apprentice to prepare a "
+-			"battle item (e.g. a Staff of Fire) for use in battle.  This "
+-			"allows the mage to override the usual selection of battle "
+-			"items, and also cancesl any spells set via the ";
++        temp = "This command allows a mage or apprentice to prepare a "
++			"battle item (e.g. a Staff of Fire) for use in battle. ";
++		if (Globals->USE_PREPARE_COMMAND == GameDefs::PREPARE_STRICT) {
++			temp += " This selects the battle item which will be used, ";
++		} else {
++			temp += "This allows the mage to override the usual selection "
++				"of battle items, ";
++		}
++		temp += "and also cancels any spells set via the ";
+ 		temp += f.Link("#combat", "COMBAT") + " order.";
+ 		f.Paragraph(temp);
+ 		f.Paragraph("Example:");
+-		temp = "Use a staff of fire in preference to any other battle item.";
++		temp = "Select a staff of fire as the ";
++		if (!(Globals->USE_PREPARE_COMMAND == GameDefs::PREPARE_STRICT))
++			temp += "preferred ";
++		temp += "battle item.";
+ 		temp2 = "PREPARE STAF";
+ 		f.CommandExample(temp, temp2);
+ 	}
+Index: ceran/rules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/ceran/rules.cpp,v
+retrieving revision 1.30
+diff -u -r1.30 rules.cpp
+--- ceran/rules.cpp	11 Jul 2002 17:11:55 -0000	1.30
++++ ceran/rules.cpp	11 Dec 2002 18:17:26 -0000
+@@ -165,7 +165,7 @@
+ 	0,	// LIMITED_MAGES_PER_BUILDING
+ 	GameDefs::REPORT_NOTHING, // TRANSIT_REPORT
+ 	0,  // MARKETS_SHOW_ADVANCED_ITEMS
+-	0,	// USE_PREPARE_COMMAND
++	GameDefs::PREPARE_NONE,	// USE_PREPARE_COMMAND
+ 	15,	// MONSTER_ADVANCE_MIN_PERCENT
+ 	0,	// MONSTER_ADVANCE_HOSTILE_PERCENT
+ 	0,	// HAVE_EMAIL_SPECIAL_COMMANDS
+Index: conquest/rules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/conquest/rules.cpp,v
+retrieving revision 1.39
+diff -u -r1.39 rules.cpp
+--- conquest/rules.cpp	11 Jul 2002 17:11:57 -0000	1.39
++++ conquest/rules.cpp	11 Dec 2002 18:17:30 -0000
+@@ -164,7 +164,7 @@
+ 	0,	// LIMITED_MAGES_PER_BUILDING
+ 	GameDefs::REPORT_NOTHING, // TRANSIT_REPORT
+ 	0,  // MARKETS_SHOW_ADVANCED_ITEMS
+-	0,	// USE_PREPARE_COMMAND
++	GameDefs::PREPARE_NONE,	// USE_PREPARE_COMMAND
+ 	15,	// MONSTER_ADVANCE_MIN_PERCENT
+ 	0,	// MONSTER_ADVANCE_HOSTILE_PERCENT
+ 	0,	// HAVE_EMAIL_SPECIAL_COMMANDS
+Index: realms/rules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/realms/rules.cpp,v
+retrieving revision 1.37
+diff -u -r1.37 rules.cpp
+--- realms/rules.cpp	11 Jul 2002 17:11:58 -0000	1.37
++++ realms/rules.cpp	11 Dec 2002 18:17:34 -0000
+@@ -166,7 +166,7 @@
+ 	0,	// LIMITED_MAGES_PER_BUILDING
+ 	GameDefs::REPORT_NOTHING, // TRANSIT_REPORT
+ 	0,  // MARKETS_SHOW_ADVANCED_ITEMS
+-	0,	// USE_PREPARE_COMMAND
++	GameDefs::PREPARE_NONE,	// USE_PREPARE_COMMAND
+ 	15,	// MONSTER_ADVANCE_MIN_PERCENT
+ 	0,	// MONSTER_ADVANCE_HOSTILE_PERCENT
+ 	1,	// HAVE_EMAIL_SPECIAL_COMMANDS
+Index: standard/rules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/standard/rules.cpp,v
+retrieving revision 1.42
+diff -u -r1.42 rules.cpp
+--- standard/rules.cpp	11 Jul 2002 17:12:00 -0000	1.42
++++ standard/rules.cpp	11 Dec 2002 18:17:38 -0000
+@@ -166,7 +166,7 @@
+ 	0,	// LIMITED_MAGES_PER_BUILDING
+ 	GameDefs::REPORT_NOTHING, // TRANSIT_REPORT
+ 	0,  // MARKETS_SHOW_ADVANCED_ITEMS
+-	0,	// USE_PREPARE_COMMAND
++	GameDefs::PREPARE_NONE,	// USE_PREPARE_COMMAND
+ 	15,	// MONSTER_ADVANCE_MIN_PERCENT
+ 	0,	// MONSTER_ADVANCE_HOSTILE_PERCENT
+ 	1,	// HAVE_EMAIL_SPECIAL_COMMANDS
+Index: wyreth/rules.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/wyreth/rules.cpp,v
+retrieving revision 1.44
+diff -u -r1.44 rules.cpp
+--- wyreth/rules.cpp	11 Jul 2002 17:12:02 -0000	1.44
++++ wyreth/rules.cpp	11 Dec 2002 18:17:43 -0000
+@@ -165,7 +165,7 @@
+ 	0,	// LIMITED_MAGES_PER_BUILDING
+ 	GameDefs::REPORT_NOTHING, // TRANSIT_REPORT
+ 	0,  // MARKETS_SHOW_ADVANCED_ITEMS
+-	0,	// USE_PREPARE_COMMAND
++	GameDefs::PREPARE_NONE,	// USE_PREPARE_COMMAND
+ 	15,	// MONSTER_ADVANCE_MIN_PERCENT
+ 	0,	// MONSTER_ADVANCE_HOSTILE_PERCENT
+ 	1,	// HAVE_EMAIL_SPECIAL_COMMANDS

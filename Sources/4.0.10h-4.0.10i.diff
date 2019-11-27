@@ -1,0 +1,615 @@
+Index: CHANGELOG
+===================================================================
+RCS file: /home/cvs/atlantis/CHANGELOG,v
+retrieving revision 1.106.2.9
+diff -u -r1.106.2.9 CHANGELOG
+--- CHANGELOG	18 Jan 2003 19:42:26 -0000	1.106.2.9
++++ CHANGELOG	29 Jan 2003 06:23:36 -0000
+@@ -625,3 +625,29 @@
+       to something more reasonable than 10/20 if they are using the skill
+       based upkeep unless they JUST want to penalize higher skilled leaders.
+ 
++Changes from 4.0.10h -> 4.0.10i
++--------------------------------------------------
++   -- Fix bug where completed buildings weren't adding protection in battle.
++   -- Made a small change to battle output requested by the author of
++      atlaclient.
++   -- Fixed a bug in building where using an enter order on the same turn as
++      a build caused you to be in the wrong building to build and thus not
++      actually build.
++   -- Fixed a bug in construct gate which made it successful 100% of the time
++      at level 1, instead of 20% at level 1 up to 100% at level 5.
++   -- made all town pop functions use CITY_POP instead of local constants
++   -- fixed a bug where the 'rural' hex population was taken into account
++      when markets were set up, but not when market items were considered
++      for their activity and effect on town growth.
++   -- Markets: all except food set their amount to zero below the minimum
++      pop, and the minimum amount (1/6th of total amount for trade items and
++      normal items on demand) is used as soon as an item becomes available.
++   -- the minimum amount of economically relevant items is set to at least
++      1/6th the total (this affects games in progress).
++   -- added 'staggered' markets: for more than one items of a type, an
++      increasing offset is added to the minimum population of that item's
++      market (so item 1 will appear at 1000+, item 2 at 1300+, item 3 at
++      1600+ for instance).
++   -- Fixed bug in @ENDTURN.
++   -- Fixed bug with skill-based maintanence costs.
++   -- Cleaned up includes to compile without warnings under gcc 3.2
+Index: aregion.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/aregion.cpp,v
+retrieving revision 1.50.2.5
+diff -u -r1.50.2.5 aregion.cpp
+--- aregion.cpp	20 Nov 2002 21:53:37 -0000	1.50.2.5
++++ aregion.cpp	21 Jan 2003 01:38:26 -0000
+@@ -119,8 +119,8 @@
+ 
+ int TownInfo::TownType()
+ {
+-	if (pop < 1000) return TOWN_VILLAGE;
+-	if (pop < 2000) return TOWN_TOWN;
++	if (pop < Globals->CITY_POP/4) return TOWN_VILLAGE;
++	if (pop < Globals->CITY_POP/2) return TOWN_TOWN;
+ 	return TOWN_CITY;
+ }
+ 
+@@ -374,12 +374,19 @@
+ void ARegion::SetupCityMarket()
+ {
+ 	int numtrade = 0;
++	int normalbuy = 0;
++	int normalsell = 0;
++	int advanced = 0;
++	int magic = 0;
++	int citymax = Globals->CITY_POP;
+ 	int i;
+ 	for (i=0; i<NITEMS; i++) {
+ 		if(ItemDefs[i].flags & ItemType::DISABLED) continue;
+ 		if(ItemDefs[i].flags & ItemType::NOMARKET) continue;
+ 
+ 		int j;
++		int cap;
++		int offset = 0;
+ 		if(ItemDefs[ i ].type & IT_NORMAL) {
+ 			if (i==I_SILVER) continue;
+ 			if (i==I_GRAIN || i==I_LIVESTOCK || i==I_FISH) {
+@@ -396,8 +403,10 @@
+ 					price = ItemDefs[ i ].baseprice;
+ 				}
+ 
++				cap = (citymax * 3/4) - 1000;
++				if(cap < 0) cap = citymax/2;
+ 				Market * m = new Market (M_SELL, i, price, amt, population,
+-						population+2000, amt, amt*2);
++						population+cap, amt, amt*2);
+ 				markets.Add(m);
+ 			} else if (i == I_FOOD) {
+ 				int amt = Globals->CITY_MARKET_NORMAL_AMT;
+@@ -411,8 +420,10 @@
+ 					price = ItemDefs[ i ].baseprice;
+ 				}
+ 
+-				Market * m = new Market (M_BUY, i, price, amt, population+500,
+-						population+3000, amt, amt*5);
++				cap = (citymax / 8);
++				if(cap < citymax) cap = (citymax * 3/4);
++				Market * m = new Market (M_BUY, i, price, amt, population+cap,
++						population+6*cap, amt, amt*5);
+ 				markets.Add(m);
+ 			} else {
+ 				if (ItemDefs[i].pInput[0].item == -1) {
+@@ -442,9 +453,12 @@
+ 							} else {
+ 								price = ItemDefs[ i ].baseprice;
+ 							}
+-
++							
++							cap = (citymax/4);
++							offset = (normalbuy++ * citymax * 3 / 40);
++							// raw goods have a basic offset of 0							
+ 							Market * m = new Market (M_BUY, i, price, 0,
+-									1000+population, 4000+population,
++									population+cap+offset, population+citymax,
+ 									0, amt);
+ 							markets.Add(m);
+ 						}
+@@ -464,9 +478,11 @@
+ 							} else {
+ 								price = ItemDefs[ i ].baseprice;
+ 							}
+-
+-							Market * m = new Market (M_SELL, i, price, 0,
+-									1000+population, 4000+population, 0, amt);
++							
++							cap = (citymax/4);
++							offset = - (citymax/20) + (normalsell++ * citymax * 3/40);
++							Market * m = new Market (M_SELL, i, price, amt/6,
++									population+cap+offset, population+citymax, 0, amt);
+ 							markets.Add(m);
+ 						}
+ 					}
+@@ -482,8 +498,10 @@
+ 							price = ItemDefs[ i ].baseprice;
+ 						}
+ 
+-						Market * m = new Market (M_SELL, i, price, 0,
+-								1000+population, 4000+population, 0, amt);
++						cap = (citymax/4);
++						offset = - (citymax/20) + (normalsell++ * citymax * 3/40);
++						Market * m = new Market (M_SELL, i, price, amt/6,
++								population+cap+offset, population+citymax, 0, amt);
+ 						markets.Add(m);
+ 					} else {
+ 						if (!getrandom(6)) {
+@@ -498,8 +516,13 @@
+ 								price = ItemDefs[ i ].baseprice;
+ 							}
+ 
++							cap = (citymax/4);
++							offset = (citymax/20) + (normalbuy++ * citymax * 3/40);
++							// finished goods have a higher offset than raw goods
+ 							Market * m = new Market (M_BUY, i, price, 0,
+-									1000+population, 4000+population, 0, amt);
++									population+cap+offset, population+citymax+offset, 0, amt);
++							// Offset added to maxamt too to reflect lesser production capacity
++							// the more items are on sale.
+ 							markets.Add(m);
+ 						}
+ 					}
+@@ -519,9 +542,14 @@
+ 					price = ItemDefs[ i ].baseprice;
+ 				}
+ 
+-				Market * m = new Market (M_SELL, i, price, 0, 2000+population,
+-						4000+population, 0, amt);
+-				markets.Add(m);
++				cap = (citymax *3/4) - 1000;
++				if(cap < citymax/2) cap = citymax / 2;
++				offset = ((citymax / 8) * advanced++);
++				if (cap+offset < citymax) {
++					Market * m = new Market (M_SELL, i, price, amt/6, population+cap+offset,
++						population+citymax, 0, amt);
++					markets.Add(m);
++				}
+ 			}
+ 		} else if(ItemDefs[ i ].type & IT_MAGIC) {
+ 			j = getrandom(8);
+@@ -537,8 +565,11 @@
+ 					price = ItemDefs[ i ].baseprice;
+ 				}
+ 
+-				Market * m = new Market (M_SELL, i, price, 0, 2000+population,
+-						4000+population, 0, amt);
++				cap = (citymax *3/4) - 1000;
++				if(cap < citymax/2) cap = citymax / 2;
++				offset = (citymax/20) + ((citymax/5) * (magic++ +1));
++				Market * m = new Market (M_SELL, i, price, amt/6, population+cap,
++						population+citymax, 0, amt);
+ 				markets.Add(m);
+ 			}
+ 		} else if(ItemDefs[ i ].type & IT_TRADE) {
+@@ -551,6 +582,10 @@
+ 	int buy2 = getrandom(numtrade);
+ 	int sell1 = getrandom(numtrade);
+ 	int sell2 = getrandom(numtrade);
++	int tradebuy = 0;
++	int tradesell = 0;
++	int offset = 0;
++	int cap = 0;
+ 
+ 	buy1 = getrandom(numtrade);
+ 	while (buy1 == buy2) buy2 = getrandom(numtrade);
+@@ -592,10 +627,14 @@
+ 				} else {
+ 					price = ItemDefs[ i ].baseprice;
+ 				}
+-
+-				Market * m = new Market (M_SELL, i, price, 0, 2000+population,
+-						4000+population, 0, amt);
+-				markets.Add(m);
++				
++				cap = (citymax/2);
++				offset = - (citymax/20) + tradesell++ * (tradesell * tradesell * citymax/40);
++				if(cap + offset < citymax) {
++					Market * m = new Market (M_SELL, i, price, amt/5, cap+population+offset,
++						citymax+population, 0, amt);
++					markets.Add(m);
++				}
+ 			}
+ 
+ 			if(addsell) {
+@@ -613,9 +652,13 @@
+ 					price = ItemDefs[ i ].baseprice;
+ 				}
+ 
+-				Market * m = new Market (M_BUY, i, price, 0, 2000+population,
+-						4000+population, 0, amt);
+-				markets.Add(m);
++				cap = (citymax/2);
++				offset = tradebuy++ * (citymax/6);
++				if(cap+offset < citymax) {
++					Market * m = new Market (M_BUY, i, price, amt/6, cap+population+offset,
++						citymax+population, 0, amt);
++					markets.Add(m);
++				}
+ 			}
+ 		}
+ 	}
+@@ -661,7 +704,7 @@
+ 	town->name = new AString(AGetNameString(AGetName(1)));
+ 
+ 	if(Globals->RANDOM_ECONOMY) {
+-		int popch = 2500;
++		int popch = (Globals->CITY_POP * 16/10);
+ 		if(Globals->LESS_ARCTIC_TOWNS) {
+ 			int dnorth = GetPoleDistance(D_NORTH);
+ 			int dsouth = GetPoleDistance(D_SOUTH);
+@@ -676,9 +719,9 @@
+ 			if (dist < 9)
+ 				popch = popch - (9 - dist) * ((9 - dist) + 10) * 15;
+ 		}
+-		town->pop = 500+getrandom(popch);
++		town->pop = (Globals->CITY_POP/8)+getrandom(popch);
+ 	} else {
+-		town->pop = 500;
++		town->pop = (Globals->CITY_POP/8);
+ 	}
+ 
+ 	town->basepop = town->pop;
+@@ -820,7 +863,7 @@
+ 		int tot = 0;
+ 		forlist(&markets) {
+ 			Market * m = (Market *) elem;
+-			if (town->pop > m->minpop) {
++			if (Population() > m->minpop) {
+ 				if (ItemDefs[m->item].type & IT_TRADE) {
+ 					if (m->type == M_BUY) {
+ 						amt += 5 * m->activity;
+Index: army.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/army.cpp,v
+retrieving revision 1.51.2.3
+diff -u -r1.51.2.3 army.cpp
+--- army.cpp	18 Jan 2003 19:42:26 -0000	1.51.2.3
++++ army.cpp	18 Jan 2003 19:42:32 -0000
+@@ -95,7 +95,7 @@
+ 	if (ItemDefs[r].type & IT_MONSTER) {
+ 		int mon = ItemDefs[r].index;
+ 		if(u->type == U_WMON)
+-			name = AString(MonDefs[mon].name);
++			name = AString(MonDefs[mon].name) + " in " + *(unit->name);
+ 		else
+ 			name = AString(MonDefs[mon].name) +
+ 				AString(" controlled by ") + *(unit->name);
+@@ -669,12 +669,7 @@
+ 		if (i<notbehind) {
+ 			int diff = s->maxhits - s->hits;
+ 			if (diff > 0) {
+-				AString aName = AString(ItemDefs[s->race].name);
+-				if (s->unit->type == U_WMON)
+-					aName += AString(" in ");
+-				else
+-					aName += AString(" controlled by ");
+-				aName += *s->unit->name;
++				AString aName = s->name;
+ 
+ 				if (s->damage != 0) {
+ 					b->AddLine(aName + " takes " + s->damage +
+Index: astring.h
+===================================================================
+RCS file: /home/cvs/atlantis/astring.h,v
+retrieving revision 1.7
+diff -u -r1.7 astring.h
+--- astring.h	21 Dec 2001 16:06:27 -0000	1.7
++++ astring.h	29 Jan 2003 06:20:57 -0000
+@@ -25,7 +25,9 @@
+ #ifndef ASTRING_CLASS
+ #define ASTRING_CLASS
+ 
+-#include <iostream.h>
++#include <iostream>
++using namespace std;
++
+ #include "alist.h"
+ 
+ class AString : public AListElem {
+Index: battle.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/battle.cpp,v
+retrieving revision 1.24.2.1
+diff -u -r1.24.2.1 battle.cpp
+--- battle.cpp	3 Oct 2002 19:46:55 -0000	1.24.2.1
++++ battle.cpp	13 Jan 2003 00:50:02 -0000
+@@ -517,7 +517,7 @@
+ 			forlist(&r2->objects) {
+ 				Object * o = (Object *) elem;
+ 				/* Set building capacity */
+-				if (o->incomplete > 1 && o->IsBuilding()) {
++				if (o->incomplete < 1 && o->IsBuilding()) {
+ 					o->capacity = ObjectDefs[o->type].protect;
+ 				}
+ 			}
+Index: fileio.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/fileio.cpp,v
+retrieving revision 1.13
+diff -u -r1.13 fileio.cpp
+--- fileio.cpp	28 Nov 2001 19:08:40 -0000	1.13
++++ fileio.cpp	29 Jan 2003 06:22:36 -0000
+@@ -25,14 +25,8 @@
+ #include "fileio.h"
+ #include "gameio.h"
+ 
+-#ifndef __BORLANDC__
+-#include <iostream.h>
+-#include <fstream.h>
+-#else
+ #include <fstream>
+ #include <iostream>
+-using namespace std;
+-#endif
+ 
+ #define F_ENDLINE '\n'
+ 
+Index: fileio.h
+===================================================================
+RCS file: /home/cvs/atlantis/fileio.h,v
+retrieving revision 1.6
+diff -u -r1.6 fileio.h
+--- fileio.h	4 Nov 2001 20:21:03 -0000	1.6
++++ fileio.h	29 Jan 2003 06:20:50 -0000
+@@ -27,16 +27,9 @@
+ 
+ #include "astring.h"
+ 
+-#ifndef __BORLANDC__
+-#include <iostream.h>
+-#include <fstream.h>
+-class ifstream;
+-class ofstream;
+-#else
+ #include <fstream>
+ #include <iostream>
+ using namespace std;
+-#endif
+ 
+ class Ainfile {
+ 	public:
+Index: gameio.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/gameio.cpp,v
+retrieving revision 1.2.4.1
+diff -u -r1.2.4.1 gameio.cpp
+--- gameio.cpp	14 Sep 2002 19:44:36 -0000	1.2.4.1
++++ gameio.cpp	29 Jan 2003 06:22:58 -0000
+@@ -26,9 +26,11 @@
+ #include "gamedefs.h"
+ #include <stdlib.h>
+ #include <stdio.h>
+-#include <iostream.h>
+-#include <fstream.h>
+ #include <time.h>
++
++#include <iostream>
++#include <fstream>
++using namespace std;
+ 
+ extern "C" {
+ #include "i_rand.h"
+Index: market.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/market.cpp,v
+retrieving revision 1.3
+diff -u -r1.3 market.cpp
+--- market.cpp	5 Jul 2001 00:18:01 -0000	1.3
++++ market.cpp	21 Jan 2003 01:38:26 -0000
+@@ -93,7 +93,8 @@
+ 
+     if (population <= minpop)
+     {
+-        amount = minamt;
++    	if(ItemDefs[item].type & IT_FOOD) amount =  minamt;
++    	else amount = 0;
+     } 
+     else
+     {
+@@ -106,6 +107,11 @@
+             amount = minamt +
+                 ((maxamt - minamt) * (population - minpop)) /
+                 (maxpop - minpop);
++            // Check minimum amount if item is economically relevant
++            if(((ItemDefs[item].type & IT_TRADE) && (type == M_BUY))
++            	|| (!(ItemDefs[item].type & IT_TRADE) && (type == M_SELL))) {
++            	if(amount < maxamt/6) amount = (maxamt/6);
++            }
+         }
+     }
+ }
+Index: monthorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/monthorders.cpp,v
+retrieving revision 1.39
+diff -u -r1.39 monthorders.cpp
+--- monthorders.cpp	11 Jul 2002 17:11:52 -0000	1.39
++++ monthorders.cpp	18 Jan 2003 20:18:50 -0000
+@@ -522,12 +522,13 @@
+ void Game::RunBuildHelpers(ARegion *r)
+ {
+ 	forlist((&r->objects)) {
+-		Object * obj = (Object *) elem;
++		Object *obj = (Object *) elem;
+ 		forlist ((&obj->units)) {
+-			Unit * u = (Unit *) elem;
++			Unit *u = (Unit *) elem;
+ 			if (u->monthorders) {
+ 				if (u->monthorders->type == O_BUILD) {
+ 					BuildOrder *o = (BuildOrder *)u->monthorders;
++					Object *tarobj = NULL;
+ 					if(o->target) {
+ 						Unit *target = r->GetUnitId(o->target,u->faction->num);
+ 						if(!target) {
+@@ -553,8 +554,12 @@
+ 							u->monthorders = 0;
+ 							continue;
+ 						}
+-						if(u->object != target->object)
+-							u->MoveUnit(target->object);
++						tarobj = target->build;
++						if (tarobj == NULL) tarobj = target->object;
++						if(u->object != tarobj)
++							u->MoveUnit(tarobj);
++					} else if (u->build != NULL && u->build != u->object) {
++						u->MoveUnit(u->build);
+ 					}
+ 				}
+ 			}
+Index: parseorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/parseorders.cpp,v
+retrieving revision 1.44.2.1
+diff -u -r1.44.2.1 parseorders.cpp
+--- parseorders.cpp	20 Nov 2002 21:53:37 -0000	1.44.2.1
++++ parseorders.cpp	27 Jan 2003 02:26:28 -0000
+@@ -1478,6 +1478,7 @@
+ 			obj->type = ot;
+ 			obj->incomplete = ObjectDefs[obj->type].cost;
+ 			unit->MoveUnit(obj);
++			unit->build = obj;
+ 			unit->object->region->objects.Add(obj);
+ 		}
+ 	}
+@@ -1857,6 +1858,8 @@
+ 	int turnDepth = 1;
+ 	int turnLast = 1;
+ 	int formDepth = 0;
++	int atsign;
++
+ 	TurnOrder *tOrder = new TurnOrder;
+ 	tOrder->repeating = repeat;
+ 
+@@ -1871,6 +1874,7 @@
+ 		}
+ 		AString	saveorder = *order;
+ 		token = order->gettoken();
++		atsign = order->getat();
+ 
+ 		if (token) {
+ 			int i = Parse1Order(token);
+@@ -1899,7 +1903,8 @@
+ 							ParseError(pCheck, unit, 0, "END: without FORM.");
+ 							break;
+ 						} else {
+-							ParseError(pCheck, unit, 0, "TURN: without ENDTURN.");
++							ParseError(pCheck, unit, 0,
++									"TURN: without ENDTURN.");
+ 							if (!--turnDepth) {
+ 								unit->turnorders.Add(tOrder);
+ 								return new AString(saveorder);
+@@ -1926,7 +1931,7 @@
+ 					if (!turnLast) {
+ 						ParseError(pCheck, unit, 0, "ENDTURN: without TURN.");
+ 					} else {
+-						if (--turnDepth) 
++						if (--turnDepth)
+ 							tOrder->turnOrders.Add(new AString(saveorder));
+ 						turnLast = 0;
+ 					}
+Index: spells.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/spells.cpp,v
+retrieving revision 1.21.2.2
+diff -u -r1.21.2.2 spells.cpp
+--- spells.cpp	18 Jan 2003 19:42:26 -0000	1.21.2.2
++++ spells.cpp	20 Jan 2003 06:36:18 -0000
+@@ -605,7 +605,7 @@
+ 			RunEnchantSwords(r,u);
+ 			break;
+ 		case S_CONSTRUCT_GATE:
+-			RunConstructGate(r,u);
++			RunConstructGate(r,u,sk);
+ 			break;
+ 		case S_ENGRAVE_RUNES_OF_WARDING:
+ 			RunEngraveRunes(r,o,u);
+@@ -946,7 +946,7 @@
+ 	r->NotifySpell(u,S_EARTH_LORE, &regions );
+ }
+ 
+-void Game::RunConstructGate(ARegion *r,Unit *u)
++void Game::RunConstructGate(ARegion *r,Unit *u, int spell)
+ {
+ 	if (TerrainDefs[r->type].similar_type == R_OCEAN) {
+ 		u->Error("Gates may not be constructed at sea.");
+@@ -962,10 +962,17 @@
+ 		u->Error("Can't afford to construct a Gate.");
+ 		return;
+ 	}
++	u->SetMoney(u->GetMoney() - 1000);
++
++	int level = u->GetSkill(spell);
++	int chance = level * 20;
++	if (getrandom(100) >= chance) {
++		u->Event("Attempts to construct a gate, but fails.");
++		return;
++	}
+ 
+ 	u->Event(AString("Constructs a Gate in ")+r->ShortPrint( &regions )+".");
+ 	u->Practise(S_CONSTRUCT_GATE);
+-	u->SetMoney(u->GetMoney() - 1000);
+ 	regions.numberofgates++;
+ 	r->gate = regions.numberofgates;
+ 	r->NotifySpell(u,S_ARTIFACT_LORE, &regions );
+Index: spells.h
+===================================================================
+RCS file: /home/cvs/atlantis/spells.h,v
+retrieving revision 1.6
+diff -u -r1.6 spells.h
+--- spells.h	1 Jul 2002 13:01:53 -0000	1.6
++++ spells.h	20 Jan 2003 06:36:31 -0000
+@@ -79,7 +79,7 @@
+ void RunSummonBalrog(ARegion *,Unit *);
+ void RunCreateArtifact(ARegion *,Unit *,int,int);
+ void RunEngraveRunes(ARegion *,Object *,Unit *);
+-void RunConstructGate(ARegion *,Unit *);
++void RunConstructGate(ARegion *,Unit *,int);
+ void RunEnchantSwords(ARegion *,Unit *);
+ void RunEnchantArmor(ARegion *,Unit *);
+ void RunMindReading(ARegion *,Unit *);
+Index: unit.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/unit.cpp,v
+retrieving revision 1.53.2.4
+diff -u -r1.53.2.4 unit.cpp
+--- unit.cpp	18 Jan 2003 19:42:26 -0000	1.53.2.4
++++ unit.cpp	27 Jan 2003 02:28:56 -0000
+@@ -587,6 +587,7 @@
+ 	canattack = 1;
+ 	nomove = 0;
+ 	enter = 0;
++	build = NULL;
+ 	leftShip = 0;
+ 	destroy = 0;
+ 	if (attackorders) delete attackorders;
+@@ -1891,7 +1892,7 @@
+ 	int levels = 0;
+ 	forlist(&skills) {
+ 		Skill *s = (Skill *)elem;
+-		levels += GetLevelByDays(s->days);
++		levels += GetLevelByDays(s->days/GetMen());
+ 	}
+ 	return levels;
+ }
+Index: unit.h
+===================================================================
+RCS file: /home/cvs/atlantis/unit.h,v
+retrieving revision 1.24
+diff -u -r1.24 unit.h
+--- unit.h	11 Jul 2002 16:03:53 -0000	1.24
++++ unit.h	18 Jan 2003 20:18:50 -0000
+@@ -254,6 +254,7 @@
+ 		/* Orders */
+ 		int destroy;
+ 		int enter;
++		Object *build;
+ 		int leftShip;
+ 		UnitId *promote;
+ 		AList findorders;

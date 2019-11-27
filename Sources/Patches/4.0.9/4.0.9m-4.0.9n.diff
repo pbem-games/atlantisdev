@@ -1,0 +1,74 @@
+Index: army.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/army.cpp,v
+retrieving revision 1.34.2.3
+diff -u -r1.34.2.3 army.cpp
+--- army.cpp	16 Jun 2002 16:21:36 -0000	1.34.2.3
++++ army.cpp	4 Jul 2002 17:04:53 -0000
+@@ -211,7 +211,7 @@
+ 		// Weapons (like Runeswords) which are both weapons and battle
+ 		// items will be skipped in the battle items setup and handled
+ 		// here.
+-		if ((ItemDefs[weapon].type & IT_BATTLE) && special != -1) {
++		if ((ItemDefs[weapon].type & IT_BATTLE) && special == -1) {
+ 			special = BattleItemDefs[ItemDefs[weapon].index].index;
+ 			slevel = BattleItemDefs[ItemDefs[weapon].index].skillLevel;
+ 		}
+@@ -263,8 +263,11 @@
+ 		if(item == -1) continue;
+ 
+ 		// If we are using the ready command, skip this item unless
+-		// it's the right one.
+-		if(!Globals->USE_PREPARE_COMMAND || (pBat->itemNum==unit->readyItem)) {
++		// it's the right one, or unless it is a shield which doesn't
++		// need preparing.
++		if(!Globals->USE_PREPARE_COMMAND ||
++				(pBat->itemNum==unit->readyItem) ||
++				(pBat->flags & BattleItemType::SHIELD)) {
+ 			if(( pBat->flags & BattleItemType::SPECIAL ) && special != -1 ) {
+ 				// This unit already has a special attack so give the item
+ 				// back to the unit as they aren't going to use it.
+@@ -291,25 +294,27 @@
+ 				special = pBat->index;
+ 				slevel = pBat->skillLevel;
+ 			}
+-		}
+-
+-		if( pBat->flags & BattleItemType::SHIELD ) {
+-			SpecialType *sp = &SpecialDefs[pBat->index];
+-			/* we have a shield item with no shield FX */
+-			if(!(sp->effectflags & SpecialType::FX_SHIELD)) {
+-				continue;
+-			}
+-			for(int i = 0; i < 4; i++) {
+-				if(sp->shield[i] == NUM_ATTACK_TYPES) {
+-					for(int j = 0; j < NUM_ATTACK_TYPES; j++) {
+-						if(dskill[j] < pBat->skillLevel)
+-							dskill[j] = pBat->skillLevel;
++			if( pBat->flags & BattleItemType::SHIELD ) {
++				SpecialType *sp = &SpecialDefs[pBat->index];
++				/* we have a shield item with no shield FX */
++				if(!(sp->effectflags & SpecialType::FX_SHIELD))
++					continue;
++				for(int i = 0; i < 4; i++) {
++					if(sp->shield[i] == NUM_ATTACK_TYPES) {
++						for(int j = 0; j < NUM_ATTACK_TYPES; j++) {
++							if(dskill[j] < pBat->skillLevel)
++								dskill[j] = pBat->skillLevel;
++						}
++					} else if(sp->shield[i] >= 0) {
++						if(dskill[sp->shield[i]] < pBat->skillLevel)
++							dskill[sp->shield[i]] = pBat->skillLevel;
+ 					}
+-				} else if(sp->shield[i] >= 0) {
+-					if(dskill[sp->shield[i]] < pBat->skillLevel)
+-						dskill[sp->shield[i]] = pBat->skillLevel;
+ 				}
+ 			}
++		} else {
++			// Return an item since it wasn't the prepared type.
++			unit->items.SetNum(item, unit->items.GetNum(item)+1);
++			continue;
+ 		}
+ 	}
+ }

@@ -1,0 +1,148 @@
+Index: army.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/army.cpp,v
+retrieving revision 1.34.2.2
+diff -u -r1.34.2.2 army.cpp
+--- army.cpp	13 Dec 2001 08:24:55 -0000	1.34.2.2
++++ army.cpp	14 Jun 2002 17:24:42 -0000
+@@ -205,6 +205,16 @@
+ 		attackBonus = unit->GetSkill(S_COMBAT);
+ 		defenseBonus = attackBonus;
+ 		numAttacks = 1;
++	} else {
++		// Okay.  We got a weapon.  If this weapon also has a special
++		// and we don't have a special set, use that special.
++		// Weapons (like Runeswords) which are both weapons and battle
++		// items will be skipped in the battle items setup and handled
++		// here.
++		if ((ItemDefs[weapon].type & IT_BATTLE) && special != -1) {
++			special = BattleItemDefs[ItemDefs[weapon].index].index;
++			slevel = BattleItemDefs[ItemDefs[weapon].index].skillLevel;
++		}
+ 	}
+ 
+ 	// Set the attack and defense skills
+Index: items.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/items.cpp,v
+retrieving revision 1.22
+diff -u -r1.22 items.cpp
+--- items.cpp	27 Nov 2001 18:11:47 -0000	1.22
++++ items.cpp	26 May 2002 02:06:35 -0000
+@@ -854,6 +854,7 @@
+ 
+ Item::Item()
+ {
++	selling = 0;
+ }
+ 
+ Item::~Item()
+@@ -920,6 +921,23 @@
+ 		wt += ItemDefs[i->type].weight * i->num;
+ 	}
+ 	return wt;
++}
++
++int ItemList::CanSell(int t)
++{
++	forlist(this) {
++		Item *i = (Item *)elem;
++		if (i->type == t) return i->num - i->selling;
++	}
++	return 0;
++}
++
++void ItemList::Selling(int t, int n)
++{
++	forlist(this) {
++		Item *i = (Item *)elem;
++		if (i->type == t) i->selling += n;
++	}
+ }
+ 
+ AString ItemList::Report(int obs,int seeillusions,int nofirstcomma)
+Index: items.h
+===================================================================
+RCS file: /home/cvs/atlantis/items.h,v
+retrieving revision 1.16
+diff -u -r1.16 items.h
+--- items.h	24 Nov 2001 21:54:08 -0000	1.16
++++ items.h	26 May 2002 01:52:56 -0000
+@@ -292,6 +292,7 @@
+ 
+ 		int type;
+ 		int num;
++		int selling;
+ };
+ 
+ class ItemList : public AList
+@@ -306,6 +307,8 @@
+ 		int Weight();
+ 		int GetNum(int);
+ 		void SetNum(int,int); /* type, number */
++		int CanSell(int);
++		void Selling(int, int); /* type, number */
+ };
+ 
+ extern AString ShowSpecial(int special, int level, int expandlev);
+Index: parseorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/parseorders.cpp,v
+retrieving revision 1.35.2.2
+diff -u -r1.35.2.2 parseorders.cpp
+--- parseorders.cpp	12 May 2002 17:03:56 -0000	1.35.2.2
++++ parseorders.cpp	14 Jun 2002 16:43:44 -0000
+@@ -2246,7 +2246,10 @@
+ 	if (amt != -1) {
+ 		token = o->gettoken();
+ 		if(token) {
+-			item = ParseGiveableItem(token);
++			if (t->unitnum == -1)
++				item = ParseEnabledItem(token);
++			else
++				item = ParseGiveableItem(token);
+ 			if(amt == -2) {
+ 				int found = 0;
+ 				if(*token == "normal") {
+Index: runorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/runorders.cpp,v
+retrieving revision 1.25.2.4
+diff -u -r1.25.2.4 runorders.cpp
+--- runorders.cpp	12 May 2002 17:03:56 -0000	1.25.2.4
++++ runorders.cpp	26 May 2002 02:01:27 -0000
+@@ -1267,14 +1267,15 @@
+ 				SellOrder * o = (SellOrder *) elem;
+ 				if (o->item == m->item) {
+ 					if(o->num == -1) {
+-						o->num = u->items.GetNum(o->item);
++						o->num = u->items.CanSell(o->item);
+ 					}
+-					if (o->num > u->items.GetNum(o->item)) {
+-						o->num = u->items.GetNum(o->item);
++					if (o->num > u->items.CanSell(o->item)) {
++						o->num = u->items.CanSell(o->item);
+ 						u->Error("SELL: Unit attempted to sell more than "
+ 								"it had.");
+ 					}
+ 					if (o->num < 0) o->num = 0;
++					u->items.Selling(o->item, o->num);
+ 					num += o->num;
+ 				}
+ 			}
+Index: unit.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/unit.cpp,v
+retrieving revision 1.39.2.4
+diff -u -r1.39.2.4 unit.cpp
+--- unit.cpp	12 May 2002 17:03:57 -0000	1.39.2.4
++++ unit.cpp	14 Jun 2002 17:29:15 -0000
+@@ -1411,6 +1411,8 @@
+ 		if(!pItem->num) continue;
+ 		int item = pItem->type;
+ 		if((ItemDefs[item].type&IT_BATTLE) && (ItemDefs[item].index==index)) {
++			/* Exclude weapons.  They will be handled later */
++			if (ItemDefs[item].type & IT_WEAPON) continue;
+ 			items.SetNum(item, pItem->num - 1);
+ 			return item;
+ 		}

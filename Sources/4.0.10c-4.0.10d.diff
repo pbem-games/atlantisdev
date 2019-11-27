@@ -1,0 +1,150 @@
+Index: aregion.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/aregion.cpp,v
+retrieving revision 1.50.2.3
+diff -u -r1.50.2.3 aregion.cpp
+--- aregion.cpp	3 Oct 2002 19:46:55 -0000	1.50.2.3
++++ aregion.cpp	5 Oct 2002 04:36:30 -0000
+@@ -2460,6 +2460,9 @@
+ 
+ ARegion *ARegionList::GetRegion(int x, int y, int z)
+ {
++
++	if (z >= numLevels) return NULL;
++
+ 	ARegionArray *arr = pRegionArrays[ z ];
+ 
+ 	x = (x + arr->x) % arr->x;
+Index: army.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/army.cpp,v
+retrieving revision 1.51
+diff -u -r1.51 army.cpp
+--- army.cpp	16 Jul 2002 23:28:41 -0000	1.51
++++ army.cpp	12 Oct 2002 08:49:42 -0000
+@@ -70,6 +70,7 @@
+ 	dskill[ATTACK_WEATHER] = -2;
+ 	dskill[ATTACK_RIDING] = 0;
+ 	dskill[ATTACK_RANGED] = 0;
++	damage = 0;
+ 	hits = 1;
+ 	maxhits = 1;
+ 	amuletofi = 0;
+@@ -111,6 +112,7 @@
+ 		}
+ 		dskill[ATTACK_RIDING] += MonDefs[mon].defense[ATTACK_RIDING];
+ 		dskill[ATTACK_RANGED] += MonDefs[mon].defense[ATTACK_RANGED];
++		damage = 0;
+ 		hits = MonDefs[mon].hits;
+ 		if (hits < 1) hits = 1;
+ 		maxhits = hits;
+@@ -672,6 +674,15 @@
+ 					aName += AString(" controlled by ");
+ 				aName += *s->unit->name;
+ 
++				if (s->damage != 0) {
++					b->AddLine(aName + " takes " + s->damage +
++							" hits bringing it to " + s->hits + "/" +
++							s->maxhits + ".");
++					s->damage = 0;
++				} else {
++					b->AddLine(aName + " takes no hits leaving it at " +
++							s->hits + "/" + s->maxhits + ".");
++				}
+ 				if (s->regen) {
+ 					int regen = s->regen;
+ 					if (regen > diff) regen = diff;
+@@ -679,10 +690,6 @@
+ 					b->AddLine(aName + " regenerates " + regen +
+ 							" hits bringing it to " + s->hits + "/" +
+ 							s->maxhits + ".");
+-				} else {
+-					b->AddLine(aName + " takes " + diff +
+-							" hits bringing it to " + s->hits + "/" +
+-							s->maxhits + ".");
+ 				}
+ 			}
+ 		}
+@@ -1154,6 +1161,7 @@
+ 
+ 	if(Globals->ARMY_ROUT == GameDefs::ARMY_ROUT_HITS_INDIVIDUAL)
+ 		hitsalive--;
++	temp->damage++;
+ 	temp->hits--;
+ 	if(temp->hits > 0) return;
+ 	temp->unit->losses++;
+Index: army.h
+===================================================================
+RCS file: /home/cvs/atlantis/army.h,v
+retrieving revision 1.13
+diff -u -r1.13 army.h
+--- army.h	11 May 2002 17:00:48 -0000	1.13
++++ army.h	12 Oct 2002 08:52:47 -0000
+@@ -86,6 +86,7 @@
+ 		int armor;
+ 		int hits;
+ 		int maxhits;
++		int damage;
+ 
+ 		BITFIELD battleItems;
+ 		int amuletofi;
+Index: spells.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/spells.cpp,v
+retrieving revision 1.21
+diff -u -r1.21 spells.cpp
+--- spells.cpp	1 Jul 2002 13:01:53 -0000	1.21
++++ spells.cpp	5 Oct 2002 04:39:18 -0000
+@@ -399,7 +399,7 @@
+ 				if(token) {
+ 					z = token->value();
+ 					delete token;
+-					if(z < 0 || (z > Globals->UNDERWORLD_LEVELS +
++					if(z < 0 || (z >= Globals->UNDERWORLD_LEVELS +
+ 								Globals->UNDERDEEP_LEVELS +
+ 								Globals->ABYSS_LEVEL + 2)) {
+ 						u->Error("CAST: Invalid Z coordinate specified.");
+Index: CHANGELOG
+===================================================================
+RCS file: /home/cvs/atlantis/CHANGELOG,v
+retrieving revision 1.106.2.3
+diff -u -r1.106.2.3 CHANGELOG
+--- CHANGELOG	3 Oct 2002 19:46:55 -0000	1.106.2.3
++++ CHANGELOG	19 Oct 2002 03:51:26 -0000
+@@ -570,3 +570,11 @@
+    -- Fixed bug in movement costs when WEATHER_EXISTS was 0.
+    -- Added 'Spoils: none' line to indecisive battles to make ACB happier
+    -- Fixed segfault in skill starvation code.
++
++Changes from 4.0.10c -> 4.0.10d
++--------------------------------------------------
++   -- Fixed a coredump when a region affecting spell was used on a z level
++      that was out of range.  Bad range-check.. bad!
++   -- Fixed misleading damage messages on monsters.
++   -- Fixed a bug where gluttony became a sin (under skill starvation).
++   -- Fixed rounding error in taxation
+Index: runorders.cpp
+===================================================================
+RCS file: /home/cvs/atlantis/runorders.cpp,v
+retrieving revision 1.39.2.1
+diff -u -r1.39.2.1 runorders.cpp
+--- runorders.cpp	14 Sep 2002 19:44:36 -0000	1.39.2.1
++++ runorders.cpp	19 Oct 2002 03:56:14 -0000
+@@ -825,7 +825,7 @@
+ 	/* First, count up pillagers */
+ 	int pillagers = CountPillagers(reg);
+ 
+-	if (pillagers * 2 < reg->money / Globals->TAX_INCOME) {
++	if (pillagers * 2 * Globals->TAX_INCOME < reg->money) {
+ 		ClearPillagers(reg);
+ 		return;
+ 	}
+@@ -2007,7 +2007,7 @@
+ 				Object * obj = (Object *) elem;
+ 				forlist((&obj->units)) {
+ 					Unit * u = (Unit *) elem;
+-					if (u->needed || u->hunger)
++					if (u->needed > 0 || u->hunger > 0)
+ 						u->Short(u->needed, u->hunger);
+ 				}
+ 			}
