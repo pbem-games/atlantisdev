@@ -1,0 +1,1088 @@
+diff -u -r atlantis-4.0.10i/ceran/rules.cpp atlantis/ceran/rules.cpp
+--- atlantis-4.0.10i/ceran/rules.cpp	2002-12-11 23:47:26.000000000 +0530
++++ atlantis/ceran/rules.cpp	2003-02-09 17:32:05.000000000 +0530
+@@ -144,6 +144,10 @@
+ 	1,  // NEXUS_IS_CITY
+ 	1,	// BATTLE_FACTION_INFO
+ 	1,	// ALLOW_WITHDRAW
++	0, // GameDefs::BANK_ENABLED | GameDefs::BANK_INSETTLEMENT | GameDefs::BANK_TRADEINTEREST | GameDefs::BANK_FEES, //| GameDefs::BANK_NOTONGUARD,	// ALLOW_BANK
++	10,  // BANK_FEE
++	100, // BANK_MAXUNSKILLED
++	5000,// BANK_MAXSILVERPERLEVEL
+ 	1000,	// CITY_RENAME_COST
+ 	0,	// TAX_PILLAGE_MONTH_LONG
+ 	0,	// MULTI_HEX_NEXUS
+diff -u -r atlantis-4.0.10i/conquest/rules.cpp atlantis/conquest/rules.cpp
+--- atlantis-4.0.10i/conquest/rules.cpp	2002-12-11 23:47:30.000000000 +0530
++++ atlantis/conquest/rules.cpp	2003-02-09 17:32:29.000000000 +0530
+@@ -143,6 +143,10 @@
+ 	0,   // NEXUS_IS_CITY
+ 	0,	// BATTLE_FACTION_INFO
+ 	0,	// ALLOW_WITHDRAW
++	0, // GameDefs::BANK_ENABLED | GameDefs::BANK_INSETTLEMENT | GameDefs::BANK_TRADEINTEREST | GameDefs::BANK_FEES, //| GameDefs::BANK_NOTONGUARD,	// ALLOW_BANK
++	10,  // BANK_FEE
++	100, // BANK_MAXUNSKILLED
++	5000,// BANK_MAXSILVERPERLEVEL
+ 	0,	// CITY_RENAME_COST
+ 	0,	// TAX_PILLAGE_MONTH_LONG
+ 	0,	// MULTI_HEX_NEXUS
+diff -u -r atlantis-4.0.10i/faction.cpp atlantis/faction.cpp
+--- atlantis-4.0.10i/faction.cpp	2002-05-08 19:50:16.000000000 +0530
++++ atlantis/faction.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -124,6 +124,7 @@
+ 	quit = 0;
+ 	defaultattitude = A_NEUTRAL;
+ 	unclaimed = 0;
++	bankaccount = 0;
+ 	pReg = NULL;
+ 	pStartLoc = NULL;
+ 	noStartLeader = 0;
+@@ -146,6 +147,7 @@
+ 	defaultattitude = A_NEUTRAL;
+ 	quit = 0;
+ 	unclaimed = 0;
++	bankaccount = 0;
+ 	pReg = NULL;
+ 	pStartLoc = NULL;
+ 	noStartLeader = 0;
+@@ -170,6 +172,7 @@
+ 	f->PutInt(lastchange);
+ 	f->PutInt(lastorders);
+ 	f->PutInt(unclaimed);
++	f->PutInt(bankaccount);
+ 	f->PutStr(*name);
+ 	f->PutStr(*address);
+ 	f->PutStr(*password);
+@@ -197,6 +200,7 @@
+ 	lastchange = f->GetInt();
+ 	lastorders = f->GetInt();
+ 	unclaimed = f->GetInt();
++	bankaccount = f->GetInt();
+ 	name = f->GetStr();
+ 	address = f->GetStr();
+ 	password = f->GetStr();
+@@ -224,6 +228,46 @@
+ 	}
+ }
+ 
++void Faction::ReadinBankUpgrading( Ainfile *f, ATL_VER v )
++{
++        num = f->GetInt();
++        int i;
++
++        for (i=0; i<NFACTYPES; i++) {
++                type[i] = f->GetInt();
++        }
++
++        lastchange = f->GetInt();
++        lastorders = f->GetInt();
++        unclaimed = f->GetInt();
++        bankaccount = 0;
++        name = f->GetStr();
++        address = f->GetStr();
++        password = f->GetStr();
++        times = f->GetInt();
++        temformat = f->GetInt();
++
++        skills.Readin(f);
++        defaultattitude = f->GetInt();
++
++        // Is this a new version of the game file
++        if(defaultattitude == -1) {
++                items.Readin(f);
++                defaultattitude = f->GetInt();
++        }
++
++        int n = f->GetInt();
++        for (i=0; i<n; i++) {
++                Attitude * a = new Attitude;
++                a->Readin(f,v);
++                if (a->factionnum == num) {
++                        delete a;
++                } else {
++                        attitudes.Add(a);
++                }
++        }
++}
++
+ void Faction::View()
+ {
+ 	AString temp;
+@@ -529,6 +573,13 @@
+ 
+ 	temp = AString("Unclaimed silver: ") + unclaimed + ".";
+ 	f->PutStr(temp);
++	if (Globals->ALLOW_BANK & GameDefs::BANK_ENABLED) {
++		temp = AString("Silver in the Bank: ") + bankaccount;
++		if (Globals->ALLOW_BANK & GameDefs::BANK_TRADEINTEREST)
++			temp += AString(" (+")+interest+AString(" interest)");
++		temp += + ".";
++		f->PutStr(temp);
++	}
+ 	f->PutStr("");
+ 
+ 	forlist(&present_regions) {
+diff -u -r atlantis-4.0.10i/faction.h atlantis/faction.h
+--- atlantis-4.0.10i/faction.h	2002-05-08 19:50:16.000000000 +0530
++++ atlantis/faction.h	2003-02-09 17:01:30.000000000 +0530
+@@ -120,6 +120,7 @@
+     ~Faction();
+     
+     void Readin( Ainfile *, ATL_VER version );
++    void ReadinBankUpgrading( Ainfile *, ATL_VER version );
+     void Writeout( Aoutfile * );
+     void View();
+     
+@@ -163,6 +164,8 @@
+     int lastchange;
+     int lastorders;
+     int unclaimed;
++    int bankaccount;
++    int interest; // not written to game.out
+     AString * name;
+     AString * address;
+     AString * password;
+diff -u -r atlantis-4.0.10i/game.cpp atlantis/game.cpp
+--- atlantis-4.0.10i/game.cpp	2002-11-13 13:37:52.000000000 +0530
++++ atlantis/game.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -448,6 +448,144 @@
+ 	return( 1 );
+ }
+ 
++int Game::OpenGameBankUpgrading()
++{
++	//
++	// The order here must match the order in SaveGame
++	//
++	Ainfile f;
++	if( f.OpenByName( "game.in" ) == -1 ) {
++		return( 0 );
++	}
++
++	//
++	// Read in Globals
++	//
++	AString *s1 = f.GetStr();
++	if( !s1 ) {
++		return( 0 );
++	}
++	AString *s2 = s1->gettoken();
++	delete s1;
++	if( !s2 ) {
++		return( 0 );
++	}
++	if (! (*s2 == "atlantis_game")) {
++		delete s2;
++		f.Close();
++		return( 0 );
++	}
++	delete s2;
++
++	ATL_VER eVersion = f.GetInt();
++	Awrite(AString("Saved Game Engine Version: ") + ATL_VER_STRING(eVersion));
++	if(ATL_VER_MAJOR(eVersion) != ATL_VER_MAJOR(CURRENT_ATL_VER) ||
++			ATL_VER_MINOR(eVersion) != ATL_VER_MINOR(CURRENT_ATL_VER)) {
++		Awrite( "Incompatible Engine versions!" );
++		return( 0 );
++	}
++	if(ATL_VER_PATCH(eVersion) > ATL_VER_PATCH(CURRENT_ATL_VER)) {
++		Awrite( "This game was created with a more recent Atlantis Engine!" );
++		return( 0 );
++	}
++
++	AString *gameName = f.GetStr();
++	if(!gameName) {
++		return(0);
++	}
++	if(!(*gameName == Globals->RULESET_NAME)) {
++		Awrite("Incompatible rule-set!");
++		return( 0 );
++	}
++
++	ATL_VER gVersion = f.GetInt();
++	Awrite(AString( "Saved Rule-Set Version: ") + ATL_VER_STRING(gVersion));
++
++    if(ATL_VER_MAJOR(gVersion) < ATL_VER_MAJOR(Globals->RULESET_VERSION)) {
++		Awrite( AString( "Upgrading to " ) +
++				ATL_VER_STRING(MAKE_ATL_VER(
++						ATL_VER_MAJOR(Globals->RULESET_VERSION), 0, 0)));
++		if (!UpgradeMajorVersion(gVersion)) {
++			Awrite( "Unable to upgrade!  Aborting!" );
++			return( 0 );
++		}
++		gVersion = MAKE_ATL_VER(ATL_VER_MAJOR(Globals->RULESET_VERSION), 0, 0);
++	}
++	if( ATL_VER_MINOR(gVersion) < ATL_VER_MINOR(Globals->RULESET_VERSION)) {
++		Awrite( AString( "Upgrading to " ) +
++				ATL_VER_STRING(MAKE_ATL_VER(
++						ATL_VER_MAJOR(Globals->RULESET_VERSION),
++						ATL_VER_MINOR(Globals->RULESET_VERSION), 0)));
++		if ( ! UpgradeMinorVersion( gVersion ) ) {
++			Awrite( "Unable to upgrade!  Aborting!" );
++			return( 0 );
++		}
++		gVersion = MAKE_ATL_VER( ATL_VER_MAJOR( gVersion ),
++				ATL_VER_MINOR( Globals->RULESET_VERSION ), 0);
++	}
++	if( ATL_VER_PATCH(gVersion) < ATL_VER_PATCH(Globals->RULESET_VERSION)) {
++		Awrite( AString( "Upgrading to " ) +
++				ATL_VER_STRING(Globals->RULESET_VERSION));
++		if ( ! UpgradePatchLevel( gVersion ) ) {
++			Awrite( "Unable to upgrade!  Aborting!" );
++			return( 0 );
++		}
++		gVersion = MAKE_ATL_VER( ATL_VER_MAJOR( gVersion ),
++				ATL_VER_MINOR( gVersion ),
++				ATL_VER_PATCH( Globals->RULESET_VERSION ) );
++	}
++
++	// LLS
++	// when we get the stuff above fixed, we'll remove this junk
++	// add a small hack to check to see whether we need to populate
++	// ocean lairs
++	doExtraInit = f.GetInt();
++	if (doExtraInit > 0) {
++		year = doExtraInit;
++	} else {
++		year = f.GetInt();
++	}
++
++	month = f.GetInt();
++	seedrandom(f.GetInt());
++	factionseq = f.GetInt();
++	unitseq = f.GetInt();
++	shipseq = f.GetInt();
++	guardfaction = f.GetInt();
++	monfaction = f.GetInt();
++
++	//
++	// Read in the Factions
++	//
++	int i = f.GetInt();
++
++	for (int j=0; j<i; j++) {
++		Faction * temp = new Faction;
++		temp->ReadinBankUpgrading( &f, eVersion );
++		factions.Add(temp);
++	}
++
++	//
++	// Read in the ARegions
++	//
++	i = regions.ReadRegions( &f, &factions, eVersion );
++	if(!i) {
++		return 0;
++	}
++
++	// here we add ocean lairs
++	if (doExtraInit > 0) {
++		CreateOceanLairs();
++	}
++
++	FixBoatNums();
++	FixGateNums();
++	SetupUnitNums();
++
++	f.Close();
++	return( 1 );
++}
++
+ int Game::SaveGame()
+ {
+     Aoutfile f;
+@@ -2320,3 +2458,14 @@
+ 		u->items.SetNum(I_SWORD,men);
+ 	}
+ }
++
++void Game::BankInterest()
++{
++	forlist(&factions) {
++                Faction * fac = (Faction *) elem;
++
++		int interest = (fac->bankaccount/100)*fac->type[F_TRADE];
++		fac->bankaccount += interest;
++		fac->interest = interest;
++	}
++}
+Only in atlantis: game.cpp.orig
+diff -u -r atlantis-4.0.10i/game.h atlantis/game.h
+--- atlantis-4.0.10i/game.h	2002-07-01 12:48:14.000000000 +0530
++++ atlantis/game.h	2003-02-09 17:01:30.000000000 +0530
+@@ -72,6 +72,7 @@
+     int RunGame();
+     int EditGame( int *pSaveGame );
+     int SaveGame();
++    int OpenGameBankUpgrading();
+     int WritePlayers();
+     int ReadPlayers();
+     int ReadPlayersLine( AString *pToken, AString *pLine, Faction *pFac,
+@@ -285,7 +286,7 @@
+         GAME_STATUS_UNINIT,
+         GAME_STATUS_NEW,
+         GAME_STATUS_RUNNING,
+-        GAME_STATUS_FINISHED,
++        GAME_STATUS_FINISHED
+     };
+     int gameStatus;
+ 
+@@ -380,7 +381,7 @@
+     void DoGuard1Orders();
+     void DoGiveOrders();
+ 	void DoWithdrawOrders();
+-
++	
+ 	void DoExchangeOrders();
+ 	void DoExchangeOrder(ARegion *,Unit *,ExchangeOrder *);
+ 
+@@ -407,7 +408,14 @@
+ 	// orders should be allowed
+     //
+     int DoWithdrawOrder(ARegion *,Unit *,WithdrawOrder *);
+-
++    
++    // Bank functions
++    void ProcessBankOrder(Unit *,AString *,OrdersCheck *);
++    void DoBankDepositOrders();
++    void DoBankWithdrawOrders();
++    void BankInterest();            
++    void DoBankOrder(ARegion *,Unit *,BankOrder *);
++    
+     //
+     // These are game specific, and can be found in extra.cpp
+     //
+diff -u -r atlantis-4.0.10i/gamedata.cpp atlantis/gamedata.cpp
+--- atlantis-4.0.10i/gamedata.cpp	2002-07-17 04:58:41.000000000 +0530
++++ atlantis/gamedata.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -1661,6 +1661,14 @@
+ 	 0,0,0,0,
+ 	 -1,0,
+ 	 -1,0},
++        {"chequebook","chequebooks","CHEQ",
++         ItemType::DISABLED,
++         S_BANKING,1,1,1, {{-1,0},{-1,0},{-1,0},{-1,0}},
++         -1,0,0, {{-1,0},{-1,0},{-1,0},{-1,0}},
++         1, IT_NORMAL, 50,0,0, 0,
++         0,0,0,0,
++         -1,0,
++         -1,0},
+ };
+ ItemType * ItemDefs = id;
+ 
+@@ -1684,10 +1692,10 @@
+ 	{3,2,{S_SHIPBUILDING,S_SAILING,S_FISHING,S_LONGBOW,-1,-1}},//SEAELF
+ 	{3,2,{S_HEALING,S_FARMING,S_ENTERTAINMENT,S_HORSETRAINING,-1,-1}},//HIGHELF
+ 	{3,2,{S_HERBLORE,S_HEALING,S_RANCHING,S_LONGBOW,-1,-1}},//TRIBALELF
+-	{3,2,{S_FISHING,S_BUILDING,S_CROSSBOW,S_SHIPBUILDING,-1,-1}},//ICEDWARF
+-	{3,2,{S_MINING,S_WEAPONSMITH,S_ARMORER,S_COMBAT,-1,-1}},//HILLDWARF
+-	{3,2,{S_MINING,S_QUARRYING,S_CROSSBOW,S_ARMORER,-1,-1}},//UNDERDWARF
+-	{3,2,{S_QUARRYING,S_BUILDING,S_ARMORER,S_CROSSBOW,-1,-1}},//DESERTDWARF
++	{3,2,{S_FISHING,S_BUILDING,S_CROSSBOW,S_SHIPBUILDING,S_BANKING,-1}},//ICEDWARF
++	{3,2,{S_MINING,S_WEAPONSMITH,S_ARMORER,S_COMBAT,S_BANKING,-1}},//HILLDWARF
++	{3,2,{S_MINING,S_QUARRYING,S_CROSSBOW,S_ARMORER,S_BANKING,-1}},//UNDERDWARF
++	{3,2,{S_QUARRYING,S_BUILDING,S_ARMORER,S_CROSSBOW,S_BANKING,-1}},//DESERTDWARF
+ 	{4,1,{S_COMBAT,-1,-1,-1,-1,-1}},//ORC
+ 	{5,5,{-1,-1,-1,-1,-1,-1}},//MAN
+ 	// Additional races for Ceran
+@@ -2634,6 +2642,10 @@
+ 	 SkillType::MAGIC | SkillType::CAST | SkillType::DISABLED,
+ 	 0, -1,
+ 	 {{S_EARTH_LORE,1},{-1,0},{-1,0}}},
++        {"banking","BANK",100,
++         SkillType::DISABLED,
++         0,-1,
++         {{-1,0},{-1,0},{-1,0}}},
+ };
+ 
+ SkillType * SkillDefs = sd;
+@@ -3050,6 +3062,12 @@
+ 	 I_IRONWOOD,25,-1,0,
+ 	 25,2,3,
+ 	 -1,-1},
++        {"Bank",
++         ObjectType::DISABLED | ObjectType::CANENTER | ObjectType::CANMODIFY,
++         0,0,0,0,
++         I_WOOD_OR_STONE,30,S_BUILDING,3,
++         10,2,2,
++         -1,-1},
+ };
+ 
+ ObjectType * ObjectDefs = ot;
+diff -u -r atlantis-4.0.10i/gamedata.h atlantis/gamedata.h
+--- atlantis-4.0.10i/gamedata.h	2002-07-06 08:21:38.000000000 +0530
++++ atlantis/gamedata.h	2003-02-09 17:01:30.000000000 +0530
+@@ -238,6 +238,7 @@
+ 	I_HARP,
+ 	// Generic processed food
+ 	I_FOOD,
++	I_CHEQUEBOOK,
+ 	NITEMS
+ };
+ 
+@@ -538,6 +539,7 @@
+ 	// Food related skills
+ 	S_COOKING,
+ 	S_CREATE_FOOD,
++	S_BANKING,
+ 	NSKILLS
+ };
+ 
+@@ -645,6 +647,7 @@
+ 	O_OASIS,
+ 	O_GEMAPPRAISER,
+ 	O_HPTOWER,
++	O_OBANK,
+ 	NOBJECTS
+ };
+ 
+diff -u -r atlantis-4.0.10i/gamedefs.h atlantis/gamedefs.h
+--- atlantis-4.0.10i/gamedefs.h	2002-12-11 23:47:17.000000000 +0530
++++ atlantis/gamedefs.h	2003-02-09 17:01:30.000000000 +0530
+@@ -267,6 +267,28 @@
+ 
+ 	// Is the withdraw order enabled
+ 	int ALLOW_WITHDRAW;
++	
++	// Is the BANK order enabled ?
++	enum {
++		BANK_ENABLED      = 0x01, // Do we allow banking in this game ?
++		BANK_NOTONGUARD   = 0x02, // if Banks are enabled, can the bank be built if units are on guard ?
++					  //                       units can use the bank anyhow if it's there already
++					  // if Banks are disabled, can units BANK if region is guarded ?
++		BANK_INSETTLEMENT = 0x04, // if Banks are enabled, can the bank be built in settlements only ?
++					  //			   units can use the bank anyhow if it's there already
++					  // if Banks are disabled, can units BANK in settlements only ?
++		BANK_TRADEINTEREST= 0x08, // Do Trade factions get interest in deposits ?
++		BANK_SKILLTOBUILD = 0x10, // If banks are enabled, is BANKING 1 required in addition to BUILDING ?
++		BANK_FEES	  = 0x20, // Do operations require money ? (only if banks are enabled)
++	};
++	int ALLOW_BANK;
++	int BANK_FEE; // percentage if enabled.
++	int BANK_MAXUNSKILLED; // max silver if banks and/or skill disabled, or
++								// if unskilled and skill disabled or
++								// if banke enabled and not in bank
++	int BANK_MAXSKILLPERLEVEL;	// if skill is enabled, how much can be withdrawn deposited per skill level
++								// if disabled, skill is presumed to be 5, so if you have 1000 here,
++								// max would be 5000.
+ 
+ 	// Do cities have a cost to rename them?  If this value is set,
+ 	// the cost is the city size (1, 2, 3) * this value
+diff -u -r atlantis-4.0.10i/genrules.cpp atlantis/genrules.cpp
+--- atlantis-4.0.10i/genrules.cpp	2003-01-19 01:12:33.000000000 +0530
++++ atlantis/genrules.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -182,6 +182,8 @@
+ 	if(!(SkillDefs[S_ENTERTAINMENT].flags & SkillType::DISABLED))
+ 		f.TagText("LI", f.Link("#economy_entertainment", "Entertainment"));
+ 	f.TagText("LI", f.Link("#economy_taxingpillaging", "Taxing/Pillaging"));
++	if(Globals->ALLOW_BANK & GameDefs::BANK_ENABLED)
++		f.TagText("LI", f.Link("#economy_banking", "Banking"));
+ 	f.Enclose(0, "UL");
+ 	f.Enclose(0, "LI");
+ 	f.Enclose(1, "LI");
+@@ -256,6 +258,8 @@
+ 	f.TagText("LI", f.Link("#attack", "attack"));
+ 	f.TagText("LI", f.Link("#autotax", "autotax"));
+ 	f.TagText("LI", f.Link("#avoid", "avoid"));
++	if(Globals->ALLOW_BANK & GameDefs::BANK_ENABLED)
++		f.TagText("LI", f.Link("#bank", "bank"));
+ 	f.TagText("LI", f.Link("#behind", "behind"));
+ 	f.TagText("LI", f.Link("#build", "build"));
+ 	f.TagText("LI", f.Link("#buy", "buy"));
+@@ -2493,6 +2497,60 @@
+ 		}
+ 		f.Paragraph(temp);
+ 	}
++	if(Globals->ALLOW_BANK & GameDefs::BANK_ENABLED) {
++		f.LinkRef("economy_banking");
++		f.TagText("H3","Banking:");
++		temp = "Each faction has access to a bank account where silver can be "
++			"deposited and withdrawn.  Initially the bank account is empty "
++			"and can be operated using the ";
++		temp += f.Link("#bank","BANK") + " order. ";
++		if (!(ObjectDefs[O_OBANK].flags & ObjectType::DISABLED)
++				|| (Globals->ALLOW_BANK & GameDefs::BANK_INSETTLEMENT)
++				|| (Globals->ALLOW_BANK & GameDefs::BANK_NOTONGUARD)) {
++			temp += "A unit issuing the ";
++			temp += f.Link("#bank","BANK") + " order ";
++			if (!(ObjectDefs[O_OBANK].flags & ObjectType::DISABLED)) { // do we have banks ?
++				temp += "must be inside a bank";
++				if (Globals->ALLOW_BANK & GameDefs::BANK_INSETTLEMENT)
++					temp += ", which ";
++			}
++			if(Globals->ALLOW_BANK & GameDefs::BANK_INSETTLEMENT) {
++				temp += "must be located in a region ";
++				temp += "with a settlement of any size";
++			}
++			if(Globals->ALLOW_BANK & GameDefs::BANK_NOTONGUARD)
++				temp += " which cannot be guarded by a faction with an attitude less than Friendly";
++			temp += ".";
++		}
++		//temp += " away from the Nexus. ";
++		if (!(SkillDefs[S_BANKING].flags & SkillType::DISABLED)) { // do we have banking skill ?
++			temp += " To be able to use the ";
++			temp += f.Link("#bank","BANK") + " order, a unit must possess the BANKING skill. ";
++			temp += "Each level of this skill enables the unit to withdraw or deposit ";
++			temp += Globals->BANK_MAXSKILLPERLEVEL;
++			temp += " silver.";
++		} else {
++			temp += " Each unit is limited to withdrawing or depositing ";
++			temp += Globals->BANK_MAXUNSKILLED;
++			temp += " silver.";
++		}
++		if (Globals->ALLOW_BANK & GameDefs::BANK_FEES) {
++			temp += " Every operation (be it depositing or withdrawing) will incur in a fee of ";
++			temp += Globals->BANK_FEE;
++			temp += "% the amount.  The full amount will be deducted from the bank account (for ";
++			temp += "a withdrawal) and from the unit (for a deposit), though only the amount after";
++			temp += " the fees will be transferred.  For example, a unit trying to deposit 5000";
++			temp += " silver, would see 5000 silver taken from its pockets, but only ";
++			temp += (5000 - (5000 * Globals->BANK_FEE)/100);
++			temp += " silver would be credited in the bank account.";
++		}
++		if (Globals->ALLOW_BANK & GameDefs::BANK_TRADEINTEREST) {
++			temp += " Each faction will receive an interest in the deposit equal to the number ";
++			temp += "of its trade points in percentage (a trade 5 faction would get 5%). ";
++		}
++		temp += "FIXME: mention \"Globals->ALLOW_BANK & GameDefs::BANK_SKILLTOBUILD\" here";
++		f.Paragraph(temp);
++	}
+ 	f.LinkRef("economy_taxingpillaging");
+ 	f.TagText("H3", "Taxing/Pillaging:");
+ 	if(Globals->FACTION_LIMIT_TYPE == GameDefs::FACLIM_FACTION_TYPES)
+@@ -3874,7 +3932,19 @@
+ 	temp = "Set the unit to avoid combat when possible.";
+ 	temp2 = "AVOID 1";
+ 	f.CommandExample(temp, temp2);
+-
++//vran
++	if(Globals->ALLOW_BANK & GameDefs::BANK_ENABLED) {
++		f.ClassTagText("DIV", "rule", "");
++		f.LinkRef("bank");
++		f.TagText("H4", "BANK DEPOSIT amount");
++		f.TagText("H4", "BANK WITHDRAW amount");
++		temp = "The BANK order is used to deposit or withdraw silver from the bank.";
++		f.Paragraph(temp);
++		f.Paragraph("Example:");
++		temp = "Deposit 2500 silver in the bank.";
++		temp2 = "BANK DEPOSIT 2500";
++		f.CommandExample(temp, temp2);
++	}
+ 	f.ClassTagText("DIV", "rule", "");
+ 	f.LinkRef("behind");
+ 	f.TagText("H4", "BEHIND [flag]");
+@@ -5116,6 +5186,18 @@
+ 	f.TagText("LI", temp);
+ 	f.Enclose(0, "UL");
+ 	f.Enclose(0, "LI");
++	if (Globals->ALLOW_BANK & GameDefs::BANK_ENABLED) {
++		f.Enclose(1, "LI");
++		f.PutStr("Bank orders.");
++		f.Enclose(1, "UL");
++		f.TagText("LI" , "Interest is calculated.");
++		temp = f.Link("#bank","BANK") + " DEPOSIT orders are processed.";
++		f.TagText("LI", temp);
++		temp = f.Link("#bank","BANK") + " WITHDRAW orders are processed.";
++		f.TagText("LI", temp);
++		f.Enclose(0, "UL");
++		f.Enclose(0, "LI");
++	}
+ 	if (Globals->ALLOW_WITHDRAW) {
+ 		f.Enclose(1, "LI");
+ 		f.PutStr("Withdraw orders.");
+Only in atlantis: genrules.cpp.orig
+diff -u -r atlantis-4.0.10i/main.cpp atlantis/main.cpp
+--- atlantis-4.0.10i/main.cpp	2001-10-10 00:46:15.000000000 +0530
++++ atlantis/main.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -43,6 +43,7 @@
+ 	Awrite("atlantis genrules <introfile> <cssfile> <rules-outputfile>");
+ 	Awrite("");
+ 	Awrite("atlantis check <orderfile> <checkfile>");
++	Awrite("atlantis upgradebank");
+ }
+ 
+ int main(int argc, char *argv[])
+@@ -111,24 +112,37 @@
+ 				Awrite( "Couldn't save the game!" );
+ 				break;
+ 			}
+-		} else if (AString(argv[1]) == "edit") {
+-			if( !game.OpenGame() ) {
++		} else if (AString(argv[1]) == "upgradebank") {
++			if( !game.OpenGameBankUpgrading() ) {
+ 				Awrite( "Couldn't open the game file!" );
+ 				break;
+ 			}
+ 
+-			int saveGame = 0;
+-			if( !game.EditGame( &saveGame ) ) {
+-				Awrite( "Couldn't edit the game!" );
++			if( !game.SaveGame() ) {
++				Awrite( "Couldn't save the game!" );
++				break;
++			} else {
++				Awrite("Game upgraded - The bank is now functional.");
+ 				break;
+ 			}
+-
+-			if( saveGame ) {
+-				if( !game.SaveGame() ) {
+-					Awrite( "Couldn't save the game!" );
+-					break;
+-				}
+-			}
++                } else if (AString(argv[1]) == "edit") {
++                        if( !game.OpenGame() ) {
++                                Awrite( "Couldn't open the game file!" );
++                                break;
++                        }
++
++                        int saveGame = 0;
++                        if( !game.EditGame( &saveGame ) ) {
++                                Awrite( "Couldn't upgrade the game!" );
++                                break;
++                        }
++
++                        if( saveGame ) {
++                                if( !game.SaveGame() ) {
++                                        Awrite( "Couldn't save the game!" );
++                                        break;
++                                }
++                        }
+ 		} else if( AString( argv[1] ) == "check" ) {
+ 			if(argc != 4) {
+ 				usage();
+diff -u -r atlantis-4.0.10i/monthorders.cpp atlantis/monthorders.cpp
+--- atlantis-4.0.10i/monthorders.cpp	2003-01-19 01:48:50.000000000 +0530
++++ atlantis/monthorders.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -417,6 +417,31 @@
+ 		u->monthorders = 0;
+ 		return;
+ 	}
++	if (Globals->ALLOW_BANK & GameDefs::BANK_ENABLED) {
++		if ((Globals->ALLOW_BANK & GameDefs::BANK_NOTONGUARD) && !(r->CanTax(u))) {
++			u->Error("BUILD: Cannot build banks if there are guarding units.");
++			delete u->monthorders;
++			u->monthorders = 0;
++			return;
++		}
++		if (!r->town && (Globals->ALLOW_BANK & GameDefs::BANK_INSETTLEMENT)) {
++			u->Error("BUILD: Cannot build banks outside settlements.");
++			delete u->monthorders;
++			u->monthorders = 0;
++			return;
++		}
++		if ((Globals->ALLOW_BANK & GameDefs::BANK_SKILLTOBUILD) && (!u->GetSkill(S_BANKING))) {
++			u->Error("BUILD: Banking skill is required.");
++			delete u->monthorders;
++			u->monthorders = 0;
++			return;
++		}
++	} else { // This is only if a dumb GM enables banks but not the gamedef
++		u->Error("BUILD: Bank ? What is that ?"); // maybe give same error "Can't build that." ?
++		delete u->monthorders;
++		u->monthorders = 0;
++		return;
++	}
+ 
+ 	int needed = obj->incomplete;
+ 	int type = obj->type;
+diff -u -r atlantis-4.0.10i/orders.cpp atlantis/orders.cpp
+--- atlantis-4.0.10i/orders.cpp	2002-05-06 04:59:08.000000000 +0530
++++ atlantis/orders.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -35,6 +35,7 @@
+ 	"attack",
+ 	"autotax",
+ 	"avoid",
++	"bank",
+ 	"behind",
+ 	"build",
+ 	"buy",
+@@ -323,3 +324,11 @@
+ EvictOrder::~EvictOrder()
+ {
+ }
++
++BankOrder::BankOrder()
++{
++	type = O_BANK;
++}
++BankOrder::~BankOrder()
++{
++}
+diff -u -r atlantis-4.0.10i/orders.h atlantis/orders.h
+--- atlantis-4.0.10i/orders.h	2002-05-06 04:59:08.000000000 +0530
++++ atlantis/orders.h	2003-02-09 17:01:30.000000000 +0530
+@@ -46,6 +46,7 @@
+ class TeleportOrder;
+ class ForgetOrder;
+ class EvictOrder;
++class BankOrder;
+ 
+ #include "unit.h"
+ #include "gamedefs.h"
+@@ -63,6 +64,7 @@
+ 	O_ATTACK,
+ 	O_AUTOTAX,
+ 	O_AVOID,
++	O_BANK,
+ 	O_BEHIND,
+ 	O_BUILD,
+ 	O_BUY,
+@@ -361,5 +363,15 @@
+ 		AList targets;
+ };
+ 
++class BankOrder : public Order {
++	public:
++		BankOrder();
++		~BankOrder();
++
++		int what; // 1 == withdraw; 2 == deposit
++		int amount;
++//		int max;
++};
++
+ 
+ #endif
+diff -u -r atlantis-4.0.10i/parseorders.cpp atlantis/parseorders.cpp
+--- atlantis-4.0.10i/parseorders.cpp	2003-01-27 07:56:28.000000000 +0530
++++ atlantis/parseorders.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -466,6 +466,9 @@
+ 		case O_AVOID:
+ 			ProcessAvoidOrder(unit, o, pCheck);
+ 			break;
++		case O_BANK:
++			ProcessBankOrder(unit, o, pCheck);
++			break;
+ 		case O_BEHIND:
+ 			ProcessBehindOrder(unit, o, pCheck);
+ 			break;
+@@ -1307,6 +1310,58 @@
+ 	}
+ }
+ 
++void Game::ProcessBankOrder(Unit *u, AString *o, OrdersCheck *pCheck)
++{
++	int amt;
++	int what;
++//	int inbank;
++//	int lvl;
++//	int max = Globals->BANK_MAXSKILLPERLEVEL * 5; // value if banks & skills disabled
++
++	if (!(Globals->ALLOW_BANK & GameDefs::BANK_ENABLED)) {
++		ParseError(pCheck, u, 0, "There are no banks in this game.");
++		return;
++	}
++	AString *token = o->gettoken();
++	if (token) {
++		if (*token == "deposit")
++			what = 2;
++		if (*token == "withdraw")
++			what = 1;
++		delete token;
++		if (what == 2) {
++			token = o->gettoken();
++			if (!token) {
++				ParseError(pCheck, u, 0, "BANK: No amount to deposit given.");
++				return;
++			}
++			amt = token->value();
++			delete token;
++		} else if (what == 1) {	// withdrawal
++			token = o->gettoken();
++			if (!token) {
++				ParseError(pCheck, u, 0, "BANK: No amount to withdraw given.");
++				return;
++			}
++			amt = token->value();
++			delete token;
++		} else {
++			ParseError(pCheck, u, 0, "BANK: No WITHDRAW or DEPOSIT given.");
++			return;
++		}
++	} else {
++		ParseError(pCheck, u, 0, "BANK: No action given.");
++		return;
++	}
++	if(!pCheck) {
++		BankOrder * order = new BankOrder;
++		order->what = what;
++		order->amount = amt;
++		u->bankorders.Add(order);
++	}
++	return;
++}
++
+ void Game::ProcessRevealOrder(Unit * u,AString * o, OrdersCheck *pCheck)
+ {
+ 	if(!pCheck) {
+@@ -1462,7 +1517,10 @@
+ 				unit->Error("BUILD: Can't build in an ocean.");
+ 				return;
+ 			}
+-
++			if (ot == O_OBANK && (ObjectDefs[O_OBANK].flags & ObjectType::DISABLED)) {
++					unit->Error("BUILD: No such things as Banks.");
++					return;
++			}
+ 			if (ObjectIsShip(ot) && ot != O_BALLOON) {
+ 				if (!reg->IsCoastalOrLakeside()) {
+ 					unit->Error("BUILD: Can't build ship in "
+Only in atlantis: parseorders.cpp.orig
+diff -u -r atlantis-4.0.10i/realms/rules.cpp atlantis/realms/rules.cpp
+--- atlantis-4.0.10i/realms/rules.cpp	2002-12-11 23:47:34.000000000 +0530
++++ atlantis/realms/rules.cpp	2003-02-09 17:32:53.000000000 +0530
+@@ -145,6 +145,10 @@
+ 	0,  // NEXUS_IS_CITY
+ 	0,	// BATTLE_FACTION_INFO
+ 	0,	// ALLOW_WITHDRAW
++	0, // GameDefs::BANK_ENABLED | GameDefs::BANK_INSETTLEMENT | GameDefs::BANK_TRADEINTEREST | GameDefs::BANK_FEES, //| GameDefs::BANK_NOTONGUARD,	// ALLOW_BANK
++	10,  // BANK_FEE
++	100, // BANK_MAXUNSKILLED
++	5000,// BANK_MAXSILVERPERLEVEL
+ 	0,	// CITY_RENAME_COST
+ 	0,	// TAX_PILLAGE_MONTH_LONG
+ 	0,	// MULTI_HEX_NEXUS
+diff -u -r atlantis-4.0.10i/runorders.cpp atlantis/runorders.cpp
+--- atlantis-4.0.10i/runorders.cpp	2002-10-19 09:26:14.000000000 +0530
++++ atlantis/runorders.cpp	2003-02-09 17:01:30.000000000 +0530
+@@ -76,6 +76,13 @@
+ 	DeleteEmptyUnits();
+ 	SinkUncrewedShips();
+ 	DrownUnits();
++	if (Globals->ALLOW_BANK & GameDefs::BANK_ENABLED) {
++		Awrite("Running BANK orders...");
++		if (Globals->ALLOW_BANK & GameDefs::BANK_TRADEINTEREST)
++			BankInterest();
++		DoBankDepositOrders();
++		DoBankWithdrawOrders();
++	}
+ 	if(Globals->ALLOW_WITHDRAW) {
+ 		Awrite("Running WITHDRAW Orders...");
+ 		DoWithdrawOrders();
+@@ -2055,6 +2062,170 @@
+ 	return 0;
+ }
+ 
++void Game::DoBankDepositOrders()
++{
++	forlist((&regions)) {
++		ARegion *r = (ARegion *)elem;
++		forlist((&r->objects)) {
++			Object *obj = (Object *)elem;
++			forlist((&obj->units)) {
++				Unit *u = (Unit *) elem;
++				forlist((&u->bankorders)) {
++					BankOrder *o = (BankOrder *)elem;
++					if (o->what == 2) // deposit
++						DoBankOrder(r, u, o);
++				}
++			}
++		}
++	}
++}
++
++void Game::DoBankWithdrawOrders()
++{
++	forlist((&regions)) {
++		ARegion *r = (ARegion *)elem;
++		forlist((&r->objects)) {
++			Object *obj = (Object *)elem;
++			forlist((&obj->units)) {
++				Unit *u = (Unit *) elem;
++				forlist((&u->bankorders)) {
++					BankOrder *o = (BankOrder *)elem;
++					DoBankOrder(r, u, o);
++				}
++				u->bankorders.DeleteAll();
++			}
++		}
++	}
++}
++
++void Game::DoBankOrder(ARegion * r,Unit * u, BankOrder * o)
++{
++	int what = o->what;
++	int amt = o->amount;
++	int max;// = o->max;
++	int lvl;// = o->level;
++	int inbank;// = o->inbank;
++	int fee;
++
++	if(r->type == R_NEXUS) {
++		u->Error("BANK: does not work in the Nexus.");
++		u->bankorders.Remove(o);
++		return;
++	}
++	if (!(SkillDefs[S_BANKING].flags & SkillType::DISABLED)) { // banking skill ?
++		lvl = u->GetSkill(S_BANKING);
++	} else { // skill disabled - pretend level 5
++		lvl = 5;
++	}
++	if (!(ObjectDefs[O_OBANK].flags & ObjectType::DISABLED)) { // banks enabled ?
++		if (u->object->type != O_OBANK) // Are they in Bank ?
++			inbank = 0; // No they are not
++		else { // Yes they are in bank
++			if (u->object->incomplete > 0) // Is it completed ?
++				inbank = 0; // Not completed
++			else
++				inbank = 1; // Completed
++		}
++		if (inbank)
++			max = Globals->BANK_MAXSKILLPERLEVEL * lvl * inbank;
++		else
++			max = Globals->BANK_MAXUNSKILLED;
++	} else { // banks disabled - pretend they are in a bank
++		inbank = 1;
++		max = Globals->BANK_MAXSKILLPERLEVEL * lvl;
++	}
++	
++	if (!r->CanTax(u) && (Globals->ALLOW_BANK & GameDefs::BANK_NOTONGUARD)) {
++		if (ObjectDefs[O_OBANK].flags & ObjectType::DISABLED) { // if banks are disabled, inbank will be 1, so ignore it
++			u->Error("BANK1: A unit is on guard - banking is not allowed."); //FIXME
++			u->bankorders.Remove(o);
++			return;
++		} else { // pay attention to inbank
++			if (!inbank) { // if a unit is in a bank, then allow nevertheless
++				u->Error("BANK2: A unit is on guard - banking is not allowed."); //FIXME
++				u->bankorders.Remove(o);
++				return;
++			}
++		}
++	}
++
++	if(!u->object->region->town && (Globals->ALLOW_BANK & GameDefs::BANK_INSETTLEMENT)) {
++		if (ObjectDefs[O_OBANK].flags & ObjectType::DISABLED) { // if banks are disabled, inbank will be 1, so ignore it
++			u->Error("BANK: Unit is not in a village, town or city.");
++			u->bankorders.Remove(o);
++			return;
++		} else { // pay attention to inbank
++			if (!inbank) { // if a unit is in a bank, then allow nevertheless
++				u->Error("BANK: Unit is not in a village, town or city.");
++				u->bankorders.Remove(o);
++				return;
++			}
++		}
++	}
++
++	if ((amt > u->faction->bankaccount) && (what == 1)) {
++		u->Error(AString("BANK: Too little silver in the bank to withdraw."));
++		u->bankorders.Remove(o);
++		return;
++	}
++	if (what == 1) { // withdraw
++		if (amt > max) {
++			AString temp = "BANK: Withdrawal limited to ";
++			temp += max;
++			temp += " silver.";
++			u->Error(temp);
++			amt = max;
++		}
++	} else { // deposit
++		if (u->items.GetNum(I_SILVER) == 0) {
++			u->Error(AString("BANK: No silver available."));
++			u->bankorders.Remove(o);
++			return;
++		} else {
++			if (amt > max) {
++				AString temp = "BANK: Deposit limited to ";
++				temp += max;
++				temp += " silver.";
++				u->Error(temp);
++				amt = max;
++			}
++			if (u->items.GetNum(I_SILVER) < amt)
++				amt = u->items.GetNum(I_SILVER);
++		}
++	}
++	if (Globals->ALLOW_BANK & GameDefs::BANK_FEES)
++		fee = (amt * Globals->BANK_FEE)/100;
++	else
++		fee = 0;
++	AString temp;
++	if (what == 2)
++		temp += "Deposits ";
++	else
++		temp += "Withdraws ";
++	temp += amt - fee;
++	if (what == 2)
++		temp += " in";
++	else
++		temp += " from";
++	temp += " the bank";
++	if (Globals->ALLOW_BANK & GameDefs::BANK_FEES) {
++		temp += " (fees ";
++		temp += fee;
++		temp += ")";
++	}
++	temp += ".";
++	u->Event(temp);
++	if (what == 2) {// deposit
++		u->faction->bankaccount += amt - fee;
++		u->items.SetNum(I_SILVER,u->items.GetNum(I_SILVER) - amt);
++	} else { // withdrawal
++		u->faction->bankaccount -= amt;
++		u->items.SetNum(I_SILVER,u->items.GetNum(I_SILVER) + amt - fee);
++	}
++
++	u->bankorders.Remove(o);
++	return;
++}
+ 
+ void Game::DoGiveOrders()
+ {
+diff -u -r atlantis-4.0.10i/skillshows.cpp atlantis/skillshows.cpp
+--- atlantis-4.0.10i/skillshows.cpp	2002-07-20 02:39:35.000000000 +0530
++++ atlantis/skillshows.cpp	2003-02-09 17:01:31.000000000 +0530
+@@ -73,6 +73,11 @@
+ 			    "production. Woods are more often found in forests, but "
+ 				"may also be found elsewhere.";
+ 			break;
++		case S_BANKING:
++			if(level > 1) break;
++			*str += "This skill deals with all aspects of depositing and "
++				"withdrawing funds from banks.";
++			break;
+ 		case S_QUARRYING:
+ 			if(level > 1) break;
+ 			*str += "This skill deals with all aspects of various stone "
+diff -u -r atlantis-4.0.10i/standard/rules.cpp atlantis/standard/rules.cpp
+--- atlantis-4.0.10i/standard/rules.cpp	2002-12-11 23:47:38.000000000 +0530
++++ atlantis/standard/rules.cpp	2003-02-09 17:31:37.000000000 +0530
+@@ -145,6 +145,10 @@
+ 	0,  // NEXUS_IS_CITY
+ 	0,	// BATTLE_FACTION_INFO
+ 	0,	// ALLOW_WITHDRAW
++	0, // GameDefs::BANK_ENABLED | GameDefs::BANK_INSETTLEMENT | GameDefs::BANK_TRADEINTEREST | GameDefs::BANK_FEES, //| GameDefs::BANK_NOTONGUARD,	// ALLOW_BANK
++	10,  // BANK_FEE
++	100, // BANK_MAXUNSKILLED
++	5000,// BANK_MAXSILVERPERLEVEL
+ 	0,	// CITY_RENAME_COST
+ 	0,	// TAX_PILLAGE_MONTH_LONG
+ 	0,	// MULTI_HEX_NEXUS
+diff -u -r atlantis-4.0.10i/unit.h atlantis/unit.h
+--- atlantis-4.0.10i/unit.h	2003-01-19 01:48:50.000000000 +0530
++++ atlantis/unit.h	2003-02-09 17:01:31.000000000 +0530
+@@ -260,6 +260,7 @@
+ 		AList findorders;
+ 		AList giveorders;
+ 		AList withdraworders;
++		AList bankorders;
+ 		AList buyorders;
+ 		AList sellorders;
+ 		AList forgetorders;
+Only in atlantis: unit.h.orig
+diff -u -r atlantis-4.0.10i/wyreth/rules.cpp atlantis/wyreth/rules.cpp
+--- atlantis-4.0.10i/wyreth/rules.cpp	2002-12-11 23:47:43.000000000 +0530
++++ atlantis/wyreth/rules.cpp	2003-02-09 17:33:10.000000000 +0530
+@@ -144,6 +144,10 @@
+ 	0,  // NEXUS_IS_CITY
+ 	0,	// BATTLE_FACTION_INFO
+ 	1,	// ALLOW_WITHDRAW
++	0, // GameDefs::BANK_ENABLED | GameDefs::BANK_INSETTLEMENT | GameDefs::BANK_TRADEINTEREST | GameDefs::BANK_FEES, //| GameDefs::BANK_NOTONGUARD,	// ALLOW_BANK
++	10,  // BANK_FEE
++	100, // BANK_MAXUNSKILLED
++	5000,// BANK_MAXSILVERPERLEVEL
+ 	0,	// CITY_RENAME_COST
+ 	0,	// TAX_PILLAGE_MONTH_LONG
+ 	0,	// MULTI_HEX_NEXUS
